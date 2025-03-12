@@ -144,7 +144,7 @@ export function ChatInterface() {
           </Button>
         </form>
       </div>
-      <FlashcardPanel message={""} />
+      <FlashcardPanel />
     </div>
   );
 }
