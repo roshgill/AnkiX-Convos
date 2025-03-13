@@ -114,7 +114,7 @@ export function ChatInterface() {
           <div className="flex flex-col gap-4">
             {messages.map((message) => (
               <div
-                key={`{message.id}-${generateUniqueId()}`}
+                key={message.id}
                 className={`flex ${
                   message.role === "user" ? "justify-end" : "justify-start"
                 }`}
@@ -144,7 +144,7 @@ export function ChatInterface() {
           </Button>
         </form>
       </div>
-      <FlashcardPanel />
+      <FlashcardPanel messages= { messages } />
     </div>
   );
 }

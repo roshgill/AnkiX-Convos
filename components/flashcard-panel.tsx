@@ -6,11 +6,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Download, Edit2, Check, X, Brain } from "lucide-react";
+import { Message } from "ai";
 
 // import { useChat } from '@ai-sdk/react';
 
 // interface FlashcardPanelProps {
-//   messages: UIMessage[];
+//   messages: Message[];
 // }
 
 interface Flashcard {
@@ -26,28 +27,30 @@ interface Flashcard {
 // deck of flashcards to a file for use in Anki or other flashcard applications.
 
 // Technical details: 
-// 1. Take in the message prop (or thread of messages) every 3 user/AI back-and-forths from the chat interface, and current cards
+// 1. Take in the message prop (or thread of messages) from the chat interface, and current cards
 // created by the user, and send them to an AI model to generate new flashcards. The AI model will
 // know which parts of the conversation cards are already created for the user, and will generate
 // new flashcards based on the remaining content and context.
-// 2. Display the suggested flashcards to the user
-// 3. Allow the user to accept, edit, or discard the suggested flashcards
+// 2. Display the suggested flashcards to the user.
+// 3. Allow the user to accept, edit, or discard the suggested flashcards.
 // 4. Allow the user to export the final deck of flashcards to a file for use in Anki or other flashcard applications. (I will include an import text file format for Anki)
-export function FlashcardPanel() {
+export function FlashcardPanel({ messages }: { messages: Message[] }) {
   const [suggestedCards, setSuggestedCards] = useState<Flashcard[]>([]);
   const [acceptedCards, setAcceptedCards] = useState<Flashcard[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
-    // if (!message) return;
+    if (!messages) return;
 
     setIsGenerating(true);
+
+    // console.log(`Messages array: ${messages[1].content}`);
 
     // Placeholder for AI flashcard generation
     setTimeout(() => {
       const newCard: Flashcard = {
         id: Date.now().toString(),
-        front: "Sample Question",
+        front: "Sample question",
         back: "Sample Answer",
         reason: "This concept appears to be a key point in the discussion",
       };
