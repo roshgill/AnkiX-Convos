@@ -49,6 +49,8 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
   useEffect(() => {
     if (!messages || messages.length === 0) return;
 
+    var flashcardsList = [...suggestedCards, ...acceptedCards];
+
     const fetchFlashcards = async () => {
       setIsGenerating(true);
       try {
@@ -57,7 +59,7 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages,
-            flashcardsList: acceptedCards,
+            flashcardsList: flashcardsList
           }),
         });
 
@@ -72,7 +74,7 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
           id: generateUniqueId(),
         }));
 
-        setSuggestedCards(flashcardsWithIds);
+        setSuggestedCards((prev) => [...prev, ...flashcardsWithIds]);
       } catch (error) {
         console.error("Error generating flashcards:", error);
       } finally {
@@ -90,6 +92,10 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
 
   const handleDiscard = (cardId: string) => {
     setSuggestedCards((prev) => prev.filter((c) => c.id !== cardId));
+  };
+
+  const handleDiscardFromFinal = (cardId: string) => {
+    setAcceptedCards((prev) => prev.filter((card) => card.id !== cardId));
   };
 
   const handleExport = () => {
@@ -138,12 +144,11 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
         cards.map(card => card.id === editingCard.id ? updatedCard : card)
       );
     }
-
     setEditingCard(null);
   };
 
   return (
-    <Card className="flex min-h-screen flex-col p-4 overflow-hidden">
+    <Card className="flex min flex-col p-4 overflow-hidden">
       <Tabs defaultValue="suggested" className="flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -226,14 +231,24 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
                   <h3 className="font-medium text-xs text-muted-foreground">Why this card?</h3>
                   <p className="text-xs text-muted-foreground">{card.reason}</p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleEdit(card)}
-                >
-                  <Edit2 className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEdit(card)}
+                  >
+                    <Edit2 className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDiscardFromFinal(card.id)}
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Discard
+                  </Button>
+                </div>
               </div>
             ))}
           </ScrollArea>

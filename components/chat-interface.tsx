@@ -41,10 +41,10 @@ export function ChatInterface() {
 
   // Quick solution for now
   // Check if there are three back-and-forth exchanges (6 messages total)
-  if (messages.length % 2 === 0 && messages.length > 0 && !flashcardUpdateTriggered) {
+  if (messages.length % 6 === 0 && messages.length > 0 && !flashcardUpdateTriggered) {
     setFlashcardMessages(messages);
     setFlashcardUpdateTriggered(true); // Prevent further updates until condition resets
-  } else if (messages.length % 2 !== 0) {
+  } else if (messages.length % 6 !== 0) {
     // Reset the flag when messages length is not a multiple of 6
     setFlashcardUpdateTriggered(false);
     }
@@ -120,43 +120,80 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="grid w-full gap-4 lg:grid-cols-[1.5fr,400px]">
-      <div className="bg-card text-card-foreground shadow-sm flex h-[80vh] flex-col p-4">
-        <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
-          <div className="flex flex-col gap-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`rounded-lg px-4 py-2 ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  } max-w-[80%]`}
-                >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-        <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
-          <Textarea
-            value={input}
-            onChange={handleInputChange}
-            placeholder="Type your message..."
-            className="min-h-[80px] flex-1 resize-none p-3"
-          />
-          <Button type="submit" disabled={isLoading} className="px-4">
-            <Send className="h-5 w-5" />
-          </Button>
-        </form>
+    <div className="space-y-4">
+      <div className="max-w-[800px]">
+        <h1 className="text-2xl font-bold mb-2">AnkiX-Conversations</h1>
+        <h2 className="text-med font-medium text-muted-foreground mb-2">
+          AI-Powered Flashcards from Your Learning Conversations
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Chat with the OpenAI GPT-4o model while flashcards are generated in real-time (every 3 back and forths). Refine and export to Anki for immediate studying.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Have suggestions or found a bug? Reach out to{" "}
+          <a href="mailto:RoshanAnkiX@gmail.com" className="underline hover:text-primary">
+            RoshanAnkiX@gmail.com
+          </a>
+          , message me on Reddit (
+          <a 
+            href="https://www.reddit.com/user/__01000010" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="underline hover:text-primary"
+          >
+            u/__01000010
+          </a>
+          ), or let's connect on X (
+          <a 
+            href="https://twitter.com/Roshgill_" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="underline hover:text-primary"
+          >
+            @Roshgill_
+          </a>
+          ) — I need more internet friends 🥺
+        </p>
       </div>
-      <FlashcardPanel messages={flashcardMessages} />
+
+      <div className="grid w-full gap-3 lg:grid-cols-[2.3fr,1fr]">
+        <div className="bg-card text-card-foreground shadow-sm flex h-[68vh] flex-col p-3">
+          <ScrollArea className="flex-1 pr-3" ref={scrollAreaRef}>
+            <div className="flex flex-col gap-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${
+                    message.role === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`rounded-lg px-4 py-2 ${
+                      message.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    } max-w-[80%]`}
+                  >
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+          <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
+            <Textarea
+              value={input}
+              onChange={handleInputChange}
+              placeholder="Type your message..."
+              className="min-h-[80px] flex-1 resize-none p-3"
+            />
+            <Button type="submit" disabled={isLoading} className="px-4">
+              <Send className="h-5 w-5" />
+            </Button>
+          </form>
+        </div>
+        <FlashcardPanel messages={flashcardMessages} />
+      </div>
     </div>
   );
 }
