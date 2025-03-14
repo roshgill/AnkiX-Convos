@@ -54,7 +54,7 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
     const fetchFlashcards = async () => {
       setIsGenerating(true);
       try {
-        const response = await fetch("/api/chat", {
+        const response = await fetch("/app/api/chat/route.ts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
