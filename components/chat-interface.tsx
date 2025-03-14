@@ -11,12 +11,11 @@ import { StreamData, streamReader } from "@/lib/utils";
 import { useChat } from '@ai-sdk/react';
 
 // Message class to represent chat messages
-// interface Message {
-//   id: string;
-//   content: string;
-//   role: "user" | "assistant";
-//   timestamp: Date;
-// }
+interface Message {
+  id: string;
+  content: string;
+  role: "user" | "assistant" | "system" | "data";
+}
 
 // ChatInterface component to render chat interface + functionality
 export function ChatInterface() {
