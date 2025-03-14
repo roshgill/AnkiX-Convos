@@ -26,15 +26,27 @@ export function ChatInterface() {
   // const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [streamedContent, setStreamedContent] = useState("");
+  const [flashcardMessages, setFlashcardMessages] = useState<Message[]>([]);
   // useRef is a hook to store mutable values that persist across renders
   const abortControllerRef = useRef<AbortController | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [flashcardUpdateTriggered, setFlashcardUpdateTriggered] = useState(false); // Flag to prevent multiple updates (quick solution)
 
   const { messages, input, handleInputChange, handleSubmit } = useChat();
 
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
+
+  // Quick solution for now
+  // Check if there are three back-and-forth exchanges (6 messages total)
+  if (messages.length % 2 === 0 && messages.length > 0 && !flashcardUpdateTriggered) {
+    setFlashcardMessages(messages);
+    setFlashcardUpdateTriggered(true); // Prevent further updates until condition resets
+  } else if (messages.length % 2 !== 0) {
+    // Reset the flag when messages length is not a multiple of 6
+    setFlashcardUpdateTriggered(false);
     }
   }, [messages, streamedContent]);
 
@@ -108,7 +120,7 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="grid w-full gap-4 lg:grid-cols-[1fr,400px]">
+    <div className="grid w-full gap-4 lg:grid-cols-[1.5fr,400px]">
       <div className="bg-card text-card-foreground shadow-sm flex h-[80vh] flex-col p-4">
         <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
           <div className="flex flex-col gap-4">
@@ -133,18 +145,18 @@ export function ChatInterface() {
           </div>
         </ScrollArea>
         <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
-          <input
+          <Textarea
             value={input}
             onChange={handleInputChange}
             placeholder="Type your message..."
-            className="min-h-[60px] resize-none"
+            className="min-h-[80px] flex-1 resize-none p-3"
           />
-          <Button type="submit" disabled={isLoading}>
-            <Send className="h-4 w-4" />
+          <Button type="submit" disabled={isLoading} className="px-4">
+            <Send className="h-5 w-5" />
           </Button>
         </form>
       </div>
-      <FlashcardPanel messages= { messages } />
+      <FlashcardPanel messages={flashcardMessages} />
     </div>
   );
 }
