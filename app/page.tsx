@@ -1,5 +1,4 @@
 import { ChatInterface } from "@/components/chat-interface";
-import { Tester } from "@/components/testGenObject";
 
 export default function Home() {
   return (
