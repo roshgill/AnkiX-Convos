@@ -24,14 +24,14 @@ export async function POST(req: Request) {
 
     const result = await generateObject({
       model: openai('gpt-4o'),
-      system: `You are an assistant that generates flashcards based on the conversation and the already created flashcards. Use the conversation to identify fresh topics and insights that have not been covered in the existing flashcards, and avoid creating duplicate content. A good flashcard is one that is very concise and focused—it asks a clear, specific question testing a single fact or concept, and a direct answer.`,
+      system: `You generate concise cloze flashcards based on the conversation and existing flashcards to ensure coverage of new topics and insights without duplication. Each flashcard should hide exactly one important term or short phrase using {{c1::...}}. Focus specifically on unique, relevant points from the current conversation that have not already been addressed, avoiding trivial words (e.g., "the," "and") or single letters. The goal is to produce clear, focused flashcards that each test understanding of a distinct fact or concept.`,
       prompt: prompt,
       schema: z.object({
         flashcards: z.array(
           z.object({
-            front: z.string().describe('Front of the flashcard.'),
-            back: z.string().describe('Back of the flashcard.'),
-            reason: z.string().describe('Reason for creation of flashcard. This could be the context or the conversation that led to the creation of the flashcard. Keep it brief.'),
+            front: z.string().describe('Cloze flashcard front. Use {{c1::...}} to hide the term or phrase.'),
+            //back: z.string().describe('Back of the flashcard.'),
+            reason: z.string().describe('Reason for creation of flashcard. This could be the context or the conversation that led to the creation of the flashcard. Keep it very brief.'),
           }),
         ),
       }),

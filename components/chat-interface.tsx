@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from 'react-markdown';
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FlashcardPanel } from "@/components/flashcard-panel";
 import { StreamData, streamReader } from "@/lib/utils";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 import { useChat } from '@ai-sdk/react';
 
@@ -15,6 +18,13 @@ interface Message {
   id: string;
   content: string;
   role: "user" | "assistant" | "system" | "data";
+}
+
+interface Flashcard {
+  id: string;
+  front: string;
+  //back: string;
+  reason: string;
 }
 
 // ChatInterface component to render chat interface + functionality
@@ -26,6 +36,7 @@ export function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const [streamedContent, setStreamedContent] = useState("");
   const [flashcardMessages, setFlashcardMessages] = useState<Message[]>([]);
+  const [shouldGenerateCards, setShouldGenerateCards] = useState(false);
   // useRef is a hook to store mutable values that persist across renders
   const abortControllerRef = useRef<AbortController | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -33,100 +44,112 @@ export function ChatInterface() {
 
   const { messages, input, handleInputChange, handleSubmit } = useChat();
 
+  const [selectedText, setSelectedText] = useState("");
+  const [isCardDialogOpen, setIsCardDialogOpen] = useState(false);
+  const [selectionPosition, setSelectionPosition] = useState<{ x: number; y: number } | null>(null);
+  const [cardContent, setCardContent] = useState("");
+  const [manualCreatedCard, setManualCreatedCard] = useState<Flashcard | null>(null);
+
+  const handleSelection = (e: React.MouseEvent<HTMLDivElement>) => {
+    const selection = window.getSelection();
+
+    // Prevent running this logic if clicking on "Create Card" button
+    if ((e.target as HTMLElement).closest('.create-card-btn')) {
+      return;
+    }
+
+    if (selection && selection.toString().trim().length > 0) {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      setSelectedText(selection.toString().trim());
+      setSelectionPosition({ x: rect.x, y: rect.y });
+    } else {
+      setSelectionPosition(null);
+    }
+  };
+
+  const handleCreateCard = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // e.stopPropagation();
+    console.log(selectedText);
+    setCardContent(selectedText);
+    setIsCardDialogOpen(true);
+    setSelectionPosition(null);
+  };
+
+  const handleConfirmCard = () => {
+    if (cardContent.trim()) {
+      // Create a new message with the card content
+      const newCard = { 
+        id: generateUniqueId(),
+        front: cardContent,
+        reason: "Manually crafted "// Explicitly type as "data"
+      };
+      
+      // Update flashcard messages
+      setManualCreatedCard(newCard);
+      setIsCardDialogOpen(false);
+      setCardContent("");
+    }
+  };
+
+  const handleClozeSelection = () => {
+    const textarea = document.getElementById('card-content') as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+
+    if (selectedText) {
+      const newContent = 
+        textarea.value.substring(0, start) +
+        `{{c1::${selectedText}}}` +
+        textarea.value.substring(end);
+      
+      setCardContent(newContent);
+
+      // Restore focus after state update
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(
+          start + 6, // length of "{{c1::"
+          start + 6 + selectedText.length
+        );
+      }, 0);
+    }
+  };
+
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
-
-  // Quick solution for now
-  // Check if there are three back-and-forth exchanges (6 messages total)
-  if (messages.length % 6 === 0 && messages.length > 0 && !flashcardUpdateTriggered) {
-    setFlashcardMessages(messages);
-    setFlashcardUpdateTriggered(true); // Prevent further updates until condition resets
-  } else if (messages.length % 6 !== 0) {
-    // Reset the flag when messages length is not a multiple of 6
-    setFlashcardUpdateTriggered(false);
-    }
   }, [messages, streamedContent]);
-
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (!input.trim() || isLoading) return;
-
-  //   const userMessage: Message = {
-  //     id: Date.now().toString(),
-  //     content: input.trim(),
-  //     role: "user",
-  //     timestamp: new Date(),
-  //   };
-
-  //   setMessages((prev) => [...prev, userMessage]);
-  //   setInput("");
-  //   setIsLoading(true);
-  //   setStreamedContent("");
-
-  //   // Cancel any ongoing request
-  //   if (abortControllerRef.current) {
-  //     abortControllerRef.current.abort();
-  //   }
-
-  //   // Create new abort controller for this request
-  //   abortControllerRef.current = new AbortController();
-
-  //   try {
-  //     // Placeholder for AI SDK integration
-  //     // Replace with actual API call
-  //     const response = await fetch("/api/chat", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ message: userMessage.content }),
-  //       signal: abortControllerRef.current.signal,
-  //     });
-
-  //     if (!response.ok) throw new Error("Failed to get response");
-
-  //     let fullContent = "";
-  //     for await (const chunk of streamReader(response)) {
-  //       if (chunk.content) {
-  //         fullContent += chunk.content;
-  //         setStreamedContent(fullContent);
-  //       }
-  //     }
-
-  //     const assistantMessage: Message = {
-  //       id: (Date.now() + 1).toString(),
-  //       content: fullContent,
-  //       role: "assistant",
-  //       timestamp: new Date(),
-  //     };
-
-  //     setMessages((prev) => [...prev, assistantMessage]);
-  //     setStreamedContent("");
-  //   } catch (error) {
-  //     if (error instanceof Error && error.name === "AbortError") {
-  //       console.log("Request cancelled");
-  //     } else {
-  //       console.error("Error:", error);
-  //     }
-  //   } finally {
-  //     setIsLoading(false);
-  //     abortControllerRef.current = null;
-  //   }
-  // };
 
   const generateUniqueId = () => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
+  const handleGenerateCards = () => {
+    setFlashcardMessages(messages);
+    setShouldGenerateCards(true);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e as unknown as React.FormEvent);
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onMouseUp={(e) => handleSelection(e)}>
       <div className="max-w-[800px]">
-        <h1 className="text-2xl font-bold mb-2">AnkiX-Conversations</h1>
+        <h1 className="text-2xl font-bold mb-2">Anki-X Conversations</h1>
         <h2 className="text-med font-medium text-muted-foreground mb-2">
-          AI-Powered Flashcards from Your Learning Conversations
+          AI-Powered Flashcards from Your Learning Conversations v0.0.2 (Highlight text to manually generate cards)
         </h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Chat with the OpenAI GPT-4o model while flashcards are generated in real-time (every 3 back and forths). Refine and export to Anki for immediate studying.
+          Chat with the OpenAI GPT-4o model and pick the perfct time to generate cloze flashcards from your conversations. Edit and export to Anki for immediate studying.
         </p>
         <p className="text-xs text-muted-foreground">
           Have suggestions or found a bug? Reach out to{" "}
@@ -151,12 +174,12 @@ export function ChatInterface() {
           >
             @Roshgill_
           </a>
-          ) — I need more internet friends 🥺
+          )
         </p>
       </div>
 
-      <div className="grid w-full gap-3 lg:grid-cols-[2.3fr,1fr]">
-        <div className="bg-card text-card-foreground shadow-sm flex h-[68vh] flex-col p-3">
+      <div className="grid w-full gap-3 lg:grid-cols-[2.8fr,1fr]">
+        <div className="bg-card text-card-foreground shadow-sm flex h-[calc(100vh-10rem)] flex-col p-3">
           <ScrollArea className="flex-1 pr-3" ref={scrollAreaRef}>
             <div className="flex flex-col gap-4">
               {messages.map((message) => (
@@ -170,10 +193,14 @@ export function ChatInterface() {
                     className={`rounded-lg px-4 py-2 ${
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+                        : "bg-muted prose prose-sm dark:prose-invert max-w-none"
                     } max-w-[80%]`}
                   >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    {message.role === "assistant" ? (
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -183,6 +210,7 @@ export function ChatInterface() {
             <Textarea
               value={input}
               onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
               placeholder="Type your message..."
               className="min-h-[80px] flex-1 resize-none p-3"
             />
@@ -191,8 +219,83 @@ export function ChatInterface() {
             </Button>
           </form>
         </div>
-        <FlashcardPanel messages={flashcardMessages} />
+        <div className="flex flex-col gap-3">
+          <Button 
+            onClick={handleGenerateCards} 
+            className="w-full"
+            disabled={messages.length === 0}
+          >
+            Generate Flashcards from Conversation
+          </Button>
+          <FlashcardPanel 
+            messages={flashcardMessages} 
+            manualCreatedCard={manualCreatedCard}
+            shouldGenerate={shouldGenerateCards}
+            onGenerateComplete={() => setShouldGenerateCards(false)}
+          />
+        </div>
       </div>
+
+      {selectionPosition && (
+        <button
+        style={{
+          position: 'absolute',
+          left: selectionPosition.x + window.scrollX,
+          top: selectionPosition.y + window.scrollY - 40
+        }}
+          className="create-card-btn bg-primary text-primary-foreground px-3 py-1 rounded shadow-lg cursor-pointer"
+          onClick={(e) => handleCreateCard(e)}
+        >
+          Create Card
+        </button>
+      )}
+
+      <Dialog 
+        open={isCardDialogOpen} 
+        onOpenChange={(open) => {
+          setIsCardDialogOpen(open);
+          if (!open) {
+            setCardContent("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Flashcard</DialogTitle>
+            <DialogDescription>
+              Edit the text below to create your flashcard. Select text and click [...] to create a cloze deletion.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="card-content">Card Content</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClozeSelection}
+                  className="px-2 h-7"
+                >
+                  [...]
+                </Button>
+              </div>
+              <Textarea
+                id="card-content"
+                value={cardContent}
+                onChange={(e) => setCardContent(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={handleConfirmCard}>
+              Create Card
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

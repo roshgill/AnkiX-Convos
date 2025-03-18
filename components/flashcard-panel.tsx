@@ -21,8 +21,15 @@ import { Textarea } from "@/components/ui/textarea";
 interface Flashcard {
   id: string;
   front: string;
-  back: string;
+  //back: string;
   reason: string;
+}
+
+interface FlashcardPanelProps {
+  messages: Message[];
+  manualCreatedCard: Flashcard | null;
+  shouldGenerate: boolean;
+  onGenerateComplete: () => void;
 }
 
 // Overall:
@@ -38,52 +45,61 @@ interface Flashcard {
 // 2. Display the suggested flashcards to the user.
 // 3. Allow the user to accept, edit, or discard the suggested flashcards.
 // 4. Allow the user to export the final deck of flashcards to a file for use in Anki or other flashcard applications. (I will include an import text file format for Anki)
-export function FlashcardPanel({ messages }: { messages: Message[] }) {
+export function FlashcardPanel({ messages, manualCreatedCard, shouldGenerate, onGenerateComplete }: FlashcardPanelProps) {
   const [suggestedCards, setSuggestedCards] = useState<Flashcard[]>([]);
   const [acceptedCards, setAcceptedCards] = useState<Flashcard[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingCard, setEditingCard] = useState<Flashcard | null>(null);
   const [editedFront, setEditedFront] = useState("");
-  const [editedBack, setEditedBack] = useState("");
+  // const [editedBack, setEditedBack] = useState("");
+
+  // Remove the useEffect for automatic generation and replace with manual function
+  const generateFlashcards = async () => {
+    if (!messages || messages.length === 0) return;
+    
+    setIsGenerating(true);
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages,
+          flashcardsList: [...suggestedCards, ...acceptedCards]
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate flashcards");
+      }
+
+      const data = await response.json();
+
+      const flashcardsWithIds = data.flashcards.map((card: Omit<Flashcard, 'id'>) => ({
+        ...card,
+        id: generateUniqueId(),
+      }));
+
+      setSuggestedCards((prev) => [...prev, ...flashcardsWithIds]);
+    } catch (error) {
+      console.error("Error generating flashcards:", error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Add new useEffect for handling manually created cards
+  useEffect(() => {
+    if (manualCreatedCard) {
+      setAcceptedCards(prev => [...prev, manualCreatedCard]);
+    }
+  }, [manualCreatedCard]);
 
   useEffect(() => {
-    if (!messages || messages.length === 0) return;
-
-    var flashcardsList = [...suggestedCards, ...acceptedCards];
-
-    const fetchFlashcards = async () => {
-      setIsGenerating(true);
-      try {
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages,
-            flashcardsList: flashcardsList
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to generate flashcards");
-        }
-
-        const data = await response.json();
-
-        const flashcardsWithIds = data.flashcards.map((card: Omit<Flashcard, 'id'>) => ({
-          ...card,
-          id: generateUniqueId(),
-        }));
-
-        setSuggestedCards((prev) => [...prev, ...flashcardsWithIds]);
-      } catch (error) {
-        console.error("Error generating flashcards:", error);
-      } finally {
-        setIsGenerating(false);
-      }
-    };
-
-    fetchFlashcards();
-  }, [messages]);
+    if (shouldGenerate && messages.length > 0) {
+      generateFlashcards();
+      onGenerateComplete();
+    }
+  }, [shouldGenerate, messages]);
 
   const handleAccept = (card: Flashcard) => {
     setAcceptedCards((prev) => [...prev, card]);
@@ -101,7 +117,7 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
   const handleExport = () => {
     const header = "#separator:tab\n#html:true\n#notetype column:1\n\n";
     const content = acceptedCards
-      .map((card) => `Basic\t${card.front}\t${card.back}`)
+      .map((card) => `Cloze\t${card.front}`)
       .join("\n");
     
     const fullContent = header + content;
@@ -123,7 +139,7 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
   const handleEdit = (card: Flashcard) => {
     setEditingCard(card);
     setEditedFront(card.front);
-    setEditedBack(card.back);
+    // setEditedBack(card.back);
   };
 
   const handleSaveEdit = () => {
@@ -132,7 +148,7 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
     const updatedCard = {
       ...editingCard,
       front: editedFront,
-      back: editedBack,
+      // back: editedBack,
     };
 
     if (suggestedCards.some(card => card.id === editingCard.id)) {
@@ -147,13 +163,39 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
     setEditingCard(null);
   };
 
+  const handleClozeSelection = () => {
+    const textarea = document.getElementById('edit-front') as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+
+    if (selectedText) {
+      const newContent = 
+        textarea.value.substring(0, start) +
+        `{{c1::${selectedText}}}` +
+        textarea.value.substring(end);
+      
+      setEditedFront(newContent);
+
+      // Restore focus after state update
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(
+          start + 6, // length of "{{c1::"
+          start + 6 + selectedText.length
+        );
+      }, 0);
+    }
+  };
+
   return (
-    <Card className="flex min flex-col p-4 overflow-hidden">
+    <Card className="flex min flex-col p-3 overflow-hidden">
       <Tabs defaultValue="suggested" className="flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            <h2 className="font-semibold">Flashcards</h2>
+            <h2 className="font-semibold">Cards</h2>
           </div>
           <TabsList>
             <TabsTrigger value="suggested">Suggested</TabsTrigger>
@@ -162,7 +204,7 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
         </div>
 
         <TabsContent value="suggested" className="flex-1">
-          <ScrollArea className="h-[calc(100vh-8rem)]">
+          <ScrollArea className="h-[calc(100vh-22rem)]">
             {isGenerating && (
               <div className="space-y-4">
                 <div className="h-24 bg-muted rounded animate-pulse"></div>
@@ -175,10 +217,6 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
                 <div className="mb-2">
                   <h3 className="font-medium">Front</h3>
                   <p className="text-sm">{card.front}</p>
-                </div>
-                <div className="mb-2">
-                  <h3 className="font-medium">Back</h3>
-                  <p className="text-sm">{card.back}</p>
                 </div>
                 <div className="mb-3">
                   <h3 className="font-medium text-xs text-muted-foreground">Why this card?</h3>
@@ -216,16 +254,12 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
         </TabsContent>
 
         <TabsContent value="final" className="flex-1 flex flex-col">
-          <ScrollArea className="flex-1">
+          <ScrollArea className="h-[calc(100vh-22rem)]">
             {[...acceptedCards].reverse().map((card) => (
               <div key={card.id} className="mb-4 p-4 border rounded-lg flex-1">
                 <div className="mb-2">
                   <h3 className="font-medium">Front</h3>
                   <p className="text-sm">{card.front}</p>
-                </div>
-                <div className="mb-2">
-                  <h3 className="font-medium">Back</h3>
-                  <p className="text-sm">{card.back}</p>
                 </div>
                 <div className="mb-3">
                   <h3 className="font-medium text-xs text-muted-foreground">Why this card?</h3>
@@ -271,20 +305,22 @@ export function FlashcardPanel({ messages }: { messages: Message[] }) {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="front">Front</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-front">Front</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClozeSelection}
+                  className="px-2 h-7"
+                >
+                  [...]
+                </Button>
+              </div>
               <Textarea
-                id="front"
+                id="edit-front"
                 value={editedFront}
                 onChange={(e) => setEditedFront(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="back">Back</Label>
-              <Textarea
-                id="back"
-                value={editedBack}
-                onChange={(e) => setEditedBack(e.target.value)}
                 rows={3}
               />
             </div>
