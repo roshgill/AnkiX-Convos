@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+import { getAndIncrementCardsCount} from "@/app/actions/database";
+
 // import { useChat } from '@ai-sdk/react';
 
 // interface FlashcardPanelProps {
@@ -73,6 +75,15 @@ export function FlashcardPanel({ messages, manualCreatedCard, shouldGenerate, on
       }
 
       const data = await response.json();
+
+      // Get total flashcards count and update the database counter
+      const cardsCreated = data.flashcards.length;
+      try {
+        const result = await getAndIncrementCardsCount(cardsCreated);
+      }
+      catch (error) {
+        console.error("Error updating flashcards count:", error);
+      }
 
       const flashcardsWithIds = data.flashcards.map((card: Omit<Flashcard, 'id'>) => ({
         ...card,

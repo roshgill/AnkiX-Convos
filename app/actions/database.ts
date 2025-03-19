@@ -44,3 +44,41 @@ export async function getAndIncrementConversationCount() {
     return null;
   }
 }
+
+export async function getCardsCount() {
+  try {
+    const sql = neon(`${process.env.DATABASE_URL}`);
+    const result = await sql`
+      SELECT counter FROM cardsCounter LIMIT 1
+    `;
+    return result[0].counter;
+  } catch (error) {
+    console.error('Database error:', error);
+    return null;
+  }
+}
+
+export async function getAndIncrementCardsCount(cardsCreated: number) {
+  try {
+    const sql = neon(`${process.env.DATABASE_URL}`);
+    
+    // Get current counter value
+    const result = await sql`
+      SELECT counter FROM cardsCounter LIMIT 1
+    `;
+    
+    const currentCount = result[0].counter;
+    const newCount = currentCount + cardsCreated;
+    
+    // Increment counter in database
+    await sql`
+      UPDATE cardsCounter 
+      SET counter = ${newCount}
+    `;
+
+    return currentCount;
+  } catch (error) {
+    console.error('Database error:', error);
+    return null;
+  }
+}

@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 
 import { useChat } from '@ai-sdk/react';
 
-import { getConversationCount, getAndIncrementConversationCount } from "@/app/actions/database";
+import { getConversationCount, getAndIncrementConversationCount, getCardsCount, getAndIncrementCardsCount } from "@/app/actions/database";
 
 // Message class to represent chat messages
 interface Message {
@@ -32,6 +32,7 @@ interface Flashcard {
 // ChatInterface component to render chat interface + functionality
 export function ChatInterface() {
   const [conversationCount, setConversationCount] = useState<number | null>(null);
+  const [cardsCount, setCardsCount] = useState<number | null>(null);
   const [hasIncrementedCount, setHasIncrementedCount] = useState(false);
   
   //setMessages is a function to update the messages state
@@ -91,6 +92,12 @@ export function ChatInterface() {
         reason: "Manually crafted "// Explicitly type as "data"
       };
       
+      try {
+        getAndIncrementCardsCount(1);
+      } catch (error) {
+        console.error('Database error:', error);
+      }
+
       // Update flashcard messages
       setManualCreatedCard(newCard);
       setIsCardDialogOpen(false);
@@ -136,6 +143,11 @@ export function ChatInterface() {
     getConversationCount().then(count => {
       if (count) setConversationCount(count);
     });
+
+    getCardsCount().then(count => {
+      if (count) setCardsCount(count);
+    })
+
   }, []);
 
   const generateUniqueId = () => {
@@ -166,7 +178,7 @@ export function ChatInterface() {
     <div className="space-y-4 w-full px-4" onMouseUp={(e) => handleSelection(e)}>
       <div>
         <h1 className="text-2xl font-bold mb-2">
-          Anki-X Conversations v0.0.3
+          Anki-X Conversations v0.0.3 (Highlight text to create flashcards manually)
         </h1>
         <p className="text-sm text-muted-foreground mb-4">
           Learn with the OpenAI GPT-4o model and pick the perfect time to generate cloze flashcards from your conversation. Edit and export to Anki for immediate studying.
@@ -176,7 +188,7 @@ export function ChatInterface() {
           <a href="mailto:RoshanAnkiX@gmail.com" className="underline hover:text-primary">
             RoshanAnkiX@gmail.com
           </a>
-          , message me on Reddit (
+          , dm on Reddit (
           <a 
             href="https://www.reddit.com/user/__01000010" 
             target="_blank" 
@@ -185,7 +197,7 @@ export function ChatInterface() {
           >
             u/__01000010
           </a>
-          ), or on X (
+          ), or X (
           <a 
             href="https://twitter.com/Roshgill_" 
             target="_blank" 
@@ -195,7 +207,8 @@ export function ChatInterface() {
             @Roshgill_
           </a>
           )
-          {conversationCount && `. Number of Conversations Assisted: #${conversationCount}`}
+          {conversationCount && `. Conversations Assisted: #${conversationCount}`}
+          {cardsCount && `. Cards Created: #${cardsCount}`}
         </p>
       </div>
 
