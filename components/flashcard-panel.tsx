@@ -195,7 +195,7 @@ export function FlashcardPanel({ messages, manualCreatedCard, shouldGenerate, on
       <Tabs defaultValue="suggested" className="flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="font-semibold">Cards</h2>
+            <h2 className="font-semibold">Flashcards</h2>
           </div>
           <TabsList>
             <TabsTrigger value="suggested">Suggested</TabsTrigger>
@@ -204,7 +204,7 @@ export function FlashcardPanel({ messages, manualCreatedCard, shouldGenerate, on
         </div>
 
         <TabsContent value="suggested" className="flex-1">
-          <ScrollArea className="h-[calc(100vh-22rem)]">
+          <ScrollArea className="h-[calc(100vh-25rem)]">
             {isGenerating && (
               <div className="space-y-4">
                 <div className="h-24 bg-muted rounded animate-pulse"></div>
@@ -254,7 +254,7 @@ export function FlashcardPanel({ messages, manualCreatedCard, shouldGenerate, on
         </TabsContent>
 
         <TabsContent value="final" className="flex-1 flex flex-col">
-          <ScrollArea className="h-[calc(100vh-22rem)]">
+          <ScrollArea className="h-[calc(100vh-25rem)]">
             {[...acceptedCards].reverse().map((card) => (
               <div key={card.id} className="mb-4 p-4 border rounded-lg flex-1">
                 <div className="mb-2">

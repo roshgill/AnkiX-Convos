@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 
 import { useChat } from '@ai-sdk/react';
 
+import { getConversationCount, getAndIncrementConversationCount } from "@/app/actions/database";
+
 // Message class to represent chat messages
 interface Message {
   id: string;
@@ -29,6 +31,9 @@ interface Flashcard {
 
 // ChatInterface component to render chat interface + functionality
 export function ChatInterface() {
+  const [conversationCount, setConversationCount] = useState<number | null>(null);
+  const [hasIncrementedCount, setHasIncrementedCount] = useState(false);
+  
   //setMessages is a function to update the messages state
   //useState is a hook to manage state in functional components
   // const [messages, setMessages] = useState<Message[]>([]);
@@ -42,13 +47,14 @@ export function ChatInterface() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [flashcardUpdateTriggered, setFlashcardUpdateTriggered] = useState(false); // Flag to prevent multiple updates (quick solution)
 
-  const { messages, input, handleInputChange, handleSubmit } = useChat();
+  const { messages, input, handleInputChange, handleSubmit: originalHandleSubmit } = useChat();
 
   const [selectedText, setSelectedText] = useState("");
   const [isCardDialogOpen, setIsCardDialogOpen] = useState(false);
   const [selectionPosition, setSelectionPosition] = useState<{ x: number; y: number } | null>(null);
   const [cardContent, setCardContent] = useState("");
   const [manualCreatedCard, setManualCreatedCard] = useState<Flashcard | null>(null);
+
 
   const handleSelection = (e: React.MouseEvent<HTMLDivElement>) => {
     const selection = window.getSelection();
@@ -125,6 +131,13 @@ export function ChatInterface() {
     }
   }, [messages, streamedContent]);
 
+  useEffect(() => {
+    // Get initial count without incrementing
+    getConversationCount().then(count => {
+      if (count) setConversationCount(count);
+    });
+  }, []);
+
   const generateUniqueId = () => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
@@ -141,15 +154,22 @@ export function ChatInterface() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    if (!hasIncrementedCount) {
+      await getAndIncrementConversationCount();
+      setHasIncrementedCount(true);
+    }
+    originalHandleSubmit(e);
+  };
+
   return (
-    <div className="space-y-4" onMouseUp={(e) => handleSelection(e)}>
-      <div className="max-w-[800px]">
-        <h1 className="text-2xl font-bold mb-2">Anki-X Conversations</h1>
-        <h2 className="text-med font-medium text-muted-foreground mb-2">
-          AI-Powered Flashcards from Your Learning Conversations v0.0.2 (Highlight text to manually generate cards)
-        </h2>
+    <div className="space-y-4 w-full px-4" onMouseUp={(e) => handleSelection(e)}>
+      <div>
+        <h1 className="text-2xl font-bold mb-2">
+          Anki-X Conversations v0.0.3
+        </h1>
         <p className="text-sm text-muted-foreground mb-4">
-          Chat with the OpenAI GPT-4o model and pick the perfct time to generate cloze flashcards from your conversations. Edit and export to Anki for immediate studying.
+          Learn with the OpenAI GPT-4o model and pick the perfect time to generate cloze flashcards from your conversation. Edit and export to Anki for immediate studying.
         </p>
         <p className="text-xs text-muted-foreground">
           Have suggestions or found a bug? Reach out to{" "}
@@ -165,7 +185,7 @@ export function ChatInterface() {
           >
             u/__01000010
           </a>
-          ), or let's connect on X (
+          ), or on X (
           <a 
             href="https://twitter.com/Roshgill_" 
             target="_blank" 
@@ -175,11 +195,12 @@ export function ChatInterface() {
             @Roshgill_
           </a>
           )
+          {conversationCount && `. Number of Conversations Assisted: #${conversationCount}`}
         </p>
       </div>
 
-      <div className="grid w-full gap-3 lg:grid-cols-[2.8fr,1fr]">
-        <div className="bg-card text-card-foreground shadow-sm flex h-[calc(100vh-10rem)] flex-col p-3">
+      <div className="grid w-full gap-2 lg:grid-cols-[2.8fr,1fr]">
+        <div className="bg-card text-card-foreground shadow-sm flex h-[calc(100vh-13rem)] flex-col p-3">
           <ScrollArea className="flex-1 pr-3" ref={scrollAreaRef}>
             <div className="flex flex-col gap-4">
               {messages.map((message) => (
@@ -206,20 +227,20 @@ export function ChatInterface() {
               ))}
             </div>
           </ScrollArea>
-          <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
+          <form onSubmit={handleSubmit} className="sticky bottom-0 mt-3 flex gap-3">
             <Textarea
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Type your message..."
-              className="min-h-[80px] flex-1 resize-none p-3"
+              className="min-h-[32px] flex-1 resize-none p-1 pl-4 rounded-full border border-gray-300 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent text-med"
             />
             <Button type="submit" disabled={isLoading} className="px-4">
               <Send className="h-5 w-5" />
             </Button>
           </form>
         </div>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 h-[calc(100vh-13rem)]">
           <Button 
             onClick={handleGenerateCards} 
             className="w-full"
