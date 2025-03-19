@@ -248,7 +248,15 @@ export function ChatInterface() {
               placeholder="Type your message..."
               className="min-h-[32px] flex-1 resize-none p-1 pl-4 rounded-full border border-gray-300 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent text-med"
             />
-            <Button type="submit" disabled={isLoading} className="px-4">
+            <Button 
+              type="submit" 
+              disabled={isLoading} 
+              className="px-4"
+              onClick={(e) => {
+                e.preventDefault();
+                handleSubmit(e);
+              }}
+            >
               <Send className="h-5 w-5" />
             </Button>
           </form>
