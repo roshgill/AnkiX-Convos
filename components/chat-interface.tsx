@@ -35,6 +35,7 @@ export function ChatInterface() {
   const [isQuickDefOpen, setIsQuickDefOpen] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [highlightedSegments, setHighlightedSegments] = useState<Array<string>>([]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -103,6 +104,28 @@ export function ChatInterface() {
     setShowContextMenu(false);
     setDialogPosition(dialogPos);
     setIsQuickDefOpen(true);
+  };
+
+  const handleHighlight = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHighlightedSegments(prev => [...prev, selectedText]);
+    setShowContextMenu(false);
+  };
+
+  const renderMessageContent = (content: string, role: string) => {
+    if (role === "assistant") {
+      return <ReactMarkdown>{content}</ReactMarkdown>;
+    }
+    
+    let textToRender = content;
+    highlightedSegments.forEach(segment => {
+      textToRender = textToRender.replace(
+        new RegExp(segment, 'g'),
+        `<span class="bg-yellow-200 dark:bg-yellow-800">${segment}</span>`
+      );
+    });
+    
+    return <p className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: textToRender }} />;
   };
 
   useEffect(() => {
@@ -176,11 +199,7 @@ export function ChatInterface() {
                         : "bg-muted prose prose-sm dark:prose-invert max-w-none"
                     } max-w-[80%]`}
                   >
-                    {message.role === "assistant" ? (
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
-                    ) : (
-                      <p className="whitespace-pre-wrap">{message.content}</p>
-                    )}
+                    {renderMessageContent(message.content, message.role)}
                   </div>
                 </div>
               ))}
@@ -209,15 +228,25 @@ export function ChatInterface() {
           
           {showContextMenu && (
             <div 
-              className="fixed z-50 bg-popover text-popover-foreground shadow-md rounded-md py-1 px-2 cursor-pointer hover:bg-accent"
+              className="fixed z-50 bg-popover text-popover-foreground shadow-md rounded-md py-1 divide-y divide-gray-200"
               style={{ 
                 left: `${contextMenuPosition.x}px`, 
                 top: `${contextMenuPosition.y}px`,
               }}
-              onClick={handleQuickDefinition}
               onMouseUp={(e) => e.stopPropagation()}
             >
-              Quick Definition
+              <div 
+                className="px-4 py-1 cursor-pointer hover:bg-accent"
+                onClick={handleQuickDefinition}
+              >
+                Quick Definition
+              </div>
+              <div 
+                className="px-4 py-1 cursor-pointer hover:bg-accent"
+                onClick={handleHighlight}
+              >
+                Highlight
+              </div>
             </div>
           )}
 

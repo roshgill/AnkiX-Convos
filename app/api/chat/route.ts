@@ -4,9 +4,9 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 
 export async function POST(req: Request) {
-  const { messages, isQuickDefinition } = await req.json();
+  const { messages, selectedText } = await req.json();
 
-  if(!isQuickDefinition) {
+  if(!selectedText) {
     const result = streamText({
       model: openai('gpt-4o'),
       messages
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   }
   else {
     // Build a prompt that includes the existing flashcards list.
-    const prompt = "Define";
+    const prompt = `Selected Text: ${selectedText}`;
 
     // const prompt = 'Analyse the conversation and the already created flashcards. Return new flashcards that correspond to the current back and forth.';
 
