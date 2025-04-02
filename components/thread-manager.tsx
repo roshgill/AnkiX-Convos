@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ChatInterface } from "@/components/chat-interface";
 import { getConversationCount, getAndIncrementConversationCount } from "@/app/actions/database";
+import { set } from "date-fns";
 
 interface Message {
   id: string;
@@ -31,6 +32,7 @@ export function ThreadManager() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string>("main");
   const [isNewThreadDialogOpen, setIsNewThreadDialogOpen] = useState(false);
+  const [newThreadTitle, setNewThreadTitle] = useState("");
   const [newThreadPrompt, setNewThreadPrompt] = useState("");
   const [selectedText, setSelectedText] = useState("");
   const [conversationCount, setConversationCount] = useState<number | null>(null);
@@ -44,7 +46,7 @@ export function ThreadManager() {
           parentId: null,
           sourceText: "",
           initialPrompt: "",
-          title: "Main Thread",
+          title: "Main Conversation",
           messages: [],
           createdAt: new Date().toISOString(),
         },
@@ -64,6 +66,7 @@ export function ThreadManager() {
 
   const handleCreateNewThread = (text: string, prompt: string) => {
     setSelectedText(text);
+    setNewThreadTitle(text.length > 30 ? `${text.substring(0, 30)}...` : text);
     setNewThreadPrompt(prompt);
     setIsNewThreadDialogOpen(true);
   };
@@ -77,7 +80,7 @@ export function ThreadManager() {
       parentId: activeThreadId,
       sourceText: selectedText,
       initialPrompt: newThreadPrompt,
-      title: selectedText.length > 30 ? `${selectedText.substring(0, 30)}...` : selectedText || 'New Thread',
+      title: newThreadTitle || (selectedText.length > 30 ? `${selectedText.substring(0, 30)}...` : selectedText) || 'New Thread',
       messages: [],
       createdAt: new Date().toISOString(),
     };
@@ -159,7 +162,7 @@ export function ThreadManager() {
             style={{ display: activeThreadId === thread.id ? 'block' : 'none' }}
             className="h-full"
           >
-            <ChatInterface 
+            <ChatInterface
               threadId={thread.id}
               initialPrompt={thread.initialPrompt}
               conversationCount={conversationCount}
@@ -188,8 +191,8 @@ export function ThreadManager() {
                 id="threadTitle"
                 placeholder="Thread title (optional)"
                 className="col-span-3"
-                value={selectedText.length > 30 ? `${selectedText.substring(0, 30)}...` : selectedText}
-                readOnly
+                value={newThreadTitle}
+                onChange={(e) => setNewThreadTitle(e.target.value)}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">

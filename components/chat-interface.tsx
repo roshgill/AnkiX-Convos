@@ -41,7 +41,6 @@ export function ChatInterface({
   const [isQuickDefOpen, setIsQuickDefOpen] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
-  const [highlightedSegments, setHighlightedSegments] = useState<Array<string>>([]);
   const [hasInitializedPrompt, setHasInitializedPrompt] = useState(false);
 
   useEffect(() => {
@@ -55,24 +54,30 @@ export function ChatInterface({
     if (initialPrompt && !hasInitializedPrompt && messages.length === 0) {
       setInput(initialPrompt);
       setHasInitializedPrompt(true);
-      // Auto-submit if there's an initial prompt
-      if (initialPrompt.trim()) {
-        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-        handleSubmit(fakeEvent);
-      }
     }
   }, [initialPrompt, hasInitializedPrompt, messages.length, setInput]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    onIncrementConversationCount();
+    chatHandleSubmit(e);
+  };
+
+  // Separate effect for auto-submission
+  useEffect(() => {
+    if (initialPrompt && hasInitializedPrompt && input === initialPrompt) {
+      // Use setTimeout to ensure this runs after the state update cycle
+      setTimeout(() => {
+        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+        handleSubmit(fakeEvent);
+      }, 100);
+    }
+  }, [hasInitializedPrompt, initialPrompt, input, handleSubmit]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e as unknown as React.FormEvent);
     }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    onIncrementConversationCount();
-    chatHandleSubmit(e);
   };
 
   const handleTextSelection = (e: React.MouseEvent) => {
@@ -111,12 +116,6 @@ export function ChatInterface({
     setIsQuickDefOpen(true);
   };
 
-  const handleHighlight = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setHighlightedSegments(prev => [...prev, selectedText]);
-    setShowContextMenu(false);
-  };
-
   const handleCreateThread = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowContextMenu(false);
@@ -127,16 +126,7 @@ export function ChatInterface({
     if (role === "assistant") {
       return <ReactMarkdown>{content}</ReactMarkdown>;
     }
-    
-    let textToRender = content;
-    highlightedSegments.forEach(segment => {
-      textToRender = textToRender.replace(
-        new RegExp(segment, 'g'),
-        `<span class="bg-yellow-200 dark:bg-yellow-800">${segment}</span>`
-      );
-    });
-    
-    return <p className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: textToRender }} />;
+    return <p className="whitespace-pre-wrap">{content}</p>;
   };
 
   useEffect(() => {
@@ -251,12 +241,6 @@ export function ChatInterface({
                 onClick={handleQuickDefinition}
               >
                 Quick Definition
-              </div>
-              <div 
-                className="px-4 py-1 cursor-pointer hover:bg-accent"
-                onClick={handleHighlight}
-              >
-                Highlight
               </div>
               <div 
                 className="px-4 py-1 cursor-pointer hover:bg-accent"
