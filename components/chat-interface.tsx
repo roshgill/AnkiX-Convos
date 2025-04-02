@@ -6,12 +6,7 @@ import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FlashcardPanel } from "@/components/flashcard-panel";
-import { StreamData, streamReader } from "@/lib/utils";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { useChat } from '@ai-sdk/react';
-import { getConversationCount, getAndIncrementConversationCount, getCardsCount, getAndIncrementCardsCount } from "@/app/actions/database";
 import { QuickDefinitionDialog } from "@/components/quick-definition-dialog";
 
 // Message class to represent chat messages
@@ -21,14 +16,25 @@ interface Message {
   role: "user" | "assistant" | "system" | "data";
 }
 
+interface ChatInterfaceProps {
+  threadId: string;
+  initialPrompt?: string;
+  conversationCount: number | null;
+  onCreateNewThread: (text: string, prompt: string) => void;
+  onIncrementConversationCount: () => void;
+}
+
 // ChatInterface component to render chat interface + functionality
-export function ChatInterface() {
-  const [conversationCount, setConversationCount] = useState<number | null>(null);
-  const [hasIncrementedCount, setHasIncrementedCount] = useState(false);
+export function ChatInterface({ 
+  threadId, 
+  initialPrompt = "", 
+  conversationCount,
+  onCreateNewThread,
+  onIncrementConversationCount
+}: ChatInterfaceProps) {
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  
-  const { messages, input, handleInputChange, handleSubmit: originalHandleSubmit, setMessages } = useChat();
+  const { messages, input, handleInputChange, handleSubmit: chatHandleSubmit, setInput } = useChat({ id: threadId });
 
   const [selectedText, setSelectedText] = useState("");
   const [dialogPosition, setDialogPosition] = useState({ x: 0, y: 0 });
@@ -36,6 +42,7 @@ export function ChatInterface() {
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [highlightedSegments, setHighlightedSegments] = useState<Array<string>>([]);
+  const [hasInitializedPrompt, setHasInitializedPrompt] = useState(false);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -43,15 +50,18 @@ export function ChatInterface() {
     }
   }, [messages]);
 
+  // Set initial prompt if available and not yet initialized
   useEffect(() => {
-    getConversationCount().then(count => {
-      if (count) setConversationCount(count);
-    });
-  }, []);
-
-  const generateUniqueId = () => {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  };
+    if (initialPrompt && !hasInitializedPrompt && messages.length === 0) {
+      setInput(initialPrompt);
+      setHasInitializedPrompt(true);
+      // Auto-submit if there's an initial prompt
+      if (initialPrompt.trim()) {
+        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+        handleSubmit(fakeEvent);
+      }
+    }
+  }, [initialPrompt, hasInitializedPrompt, messages.length, setInput]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -61,11 +71,8 @@ export function ChatInterface() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    if (!hasIncrementedCount) {
-      await getAndIncrementConversationCount();
-      setHasIncrementedCount(true);
-    }
-    originalHandleSubmit(e);
+    onIncrementConversationCount();
+    chatHandleSubmit(e);
   };
 
   const handleTextSelection = (e: React.MouseEvent) => {
@@ -74,8 +81,6 @@ export function ChatInterface() {
       setShowContextMenu(false);
       return;
     }
-
-    console.log("Selected text:", selection.toString());
 
     const text = selection.toString().trim();
     if (text.length > 0) {
@@ -112,6 +117,12 @@ export function ChatInterface() {
     setShowContextMenu(false);
   };
 
+  const handleCreateThread = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowContextMenu(false);
+    onCreateNewThread(selectedText, `Explain this in more detail: "${selectedText}"`);
+  };
+
   const renderMessageContent = (content: string, role: string) => {
     if (role === "assistant") {
       return <ReactMarkdown>{content}</ReactMarkdown>;
@@ -142,7 +153,7 @@ export function ChatInterface() {
   }, [showContextMenu]);
 
   return (
-    <div className="space-y-4 w-full px-4">
+    <div className="space-y-4 w-full px-4 flex-1 overflow-hidden">
       <div>
         <h1 className="text-2xl font-bold mb-2">
           AI Learning Conversations Webapp v0.0.4 (Highlight text to get back definitions)
@@ -228,7 +239,7 @@ export function ChatInterface() {
           
           {showContextMenu && (
             <div 
-              className="fixed z-50 bg-popover text-popover-foreground shadow-md rounded-md py-1 divide-y divide-gray-200"
+              className="fixed z-50 bg-popover text-popover-foreground shadow-md rounded-md py-1 divide-y divide-gray-200 context-menu"
               style={{ 
                 left: `${contextMenuPosition.x}px`, 
                 top: `${contextMenuPosition.y}px`,
@@ -246,6 +257,12 @@ export function ChatInterface() {
                 onClick={handleHighlight}
               >
                 Highlight
+              </div>
+              <div 
+                className="px-4 py-1 cursor-pointer hover:bg-accent"
+                onClick={handleCreateThread}
+              >
+                Create Thread
               </div>
             </div>
           )}
