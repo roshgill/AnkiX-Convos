@@ -4,11 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, MessageSquare } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { ChatInterface } from "@/components/chat-interface";
+import { ThreadDialog } from "@/components/thread-dialog";
 import { getConversationCount, getAndIncrementConversationCount } from "@/app/actions/database";
 import { set } from "date-fns";
 
@@ -173,51 +170,17 @@ export function ThreadManager() {
         ))}
       </div>
 
-      {/* New Thread Dialog */}
-      <Dialog open={isNewThreadDialogOpen} onOpenChange={setIsNewThreadDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Create New Thread</DialogTitle>
-            <DialogDescription>
-              Start a new conversation thread. You can provide an initial prompt to kick things off.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="threadTitle" className="text-right">
-                Title
-              </Label>
-              <Input
-                id="threadTitle"
-                placeholder="Thread title (optional)"
-                className="col-span-3"
-                value={newThreadTitle}
-                onChange={(e) => setNewThreadTitle(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="initialPrompt" className="text-right">
-                Initial Prompt
-              </Label>
-              <Textarea
-                id="initialPrompt"
-                placeholder="Enter your initial prompt..."
-                className="col-span-3"
-                value={newThreadPrompt}
-                onChange={(e) => setNewThreadPrompt(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="submit"
-              onClick={createNewThread}
-            >
-              Create Thread
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Replace the Dialog with ThreadDialog */}
+      <ThreadDialog
+        open={isNewThreadDialogOpen}
+        onOpenChange={setIsNewThreadDialogOpen}
+        selectedText={selectedText}
+        newThreadTitle={newThreadTitle}
+        newThreadPrompt={newThreadPrompt}
+        setNewThreadTitle={setNewThreadTitle}
+        setNewThreadPrompt={setNewThreadPrompt}
+        onCreateThread={createNewThread}
+      />
     </div>
   );
 }
