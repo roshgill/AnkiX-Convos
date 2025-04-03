@@ -206,6 +206,7 @@ export function ChatInterface({
               ))}
             </div>
           </ScrollArea>
+          
           <form onSubmit={handleSubmit} className="sticky bottom-0 mt-3 flex gap-3">
             <Textarea
               value={input}
