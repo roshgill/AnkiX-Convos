@@ -3,7 +3,7 @@ import { ThreadMapManager} from "@/components/thread-map-manager";
 
 export default function Home() {
   return (
-    <main className="container mx-auto p-4">
+    <main className="w-full h-screen p-1">
       <ThreadMapManager />
     </main>
   );

@@ -143,62 +143,40 @@ export function ChatInterface({
   }, [showContextMenu]);
 
   return (
-    <div className="space-y-4 w-full px-4 flex-1 overflow-hidden">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">
-          AI Learning Conversations Webapp v0.0.4 (Highlight text to get back definitions)
+    <div className="space-y-6 w-full px-6 flex-1 overflow-hidden bg-white">
+      <div className="flex justify-end">
+        <h1 className="text-2xl font-medium mb-3 text-gray-800" style={{ fontFamily: 'Inter, sans-serif', fontSize: '16px' }}>
+          AI Learning Conversations v0.0.4
         </h1>
-        <p className="text-sm text-muted-foreground mb-4">
-          Learn with the OpenAI GPT-4o model.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Have suggestions or found a bug? Reach out to{" "}
-          <a href="mailto:RoshanAnkiX@gmail.com" className="underline hover:text-primary">
-            RoshanAnkiX@gmail.com
-          </a>
-          , dm on Reddit (
-          <a 
-            href="https://www.reddit.com/user/__01000010" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="underline hover:text-primary"
-          >
-            u/__01000010
-          </a>
-          ), or X (
-          <a 
-            href="https://twitter.com/Roshgill_" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="underline hover:text-primary"
-          >
-            @Roshgill_
-          </a>
-          )
-          {conversationCount && `. Conversations Assisted: #${conversationCount}`}
-        </p>
       </div>
 
-      <div className="grid w-full gap-2">
+      <div className="w-full gap-3">
         <div 
-          className="bg-card text-card-foreground shadow-sm flex h-[calc(100vh-13rem)] flex-col p-3"
+          className="bg-white text-gray-800 flex h-[calc(100vh-13rem)] flex-col"
           onMouseUp={handleTextSelection}
+          style={{ maxWidth: '700px', margin: '0 auto' }}
         >
-          <ScrollArea className="flex-1 pr-3" ref={scrollAreaRef}>
-            <div className="flex flex-col gap-4">
+          <ScrollArea 
+            className="flex-1 pr-4" 
+            ref={scrollAreaRef} 
+            style={{ paddingTop: '24px', paddingBottom: '24px' }}
+          >
+            <div className="flex flex-col gap-6">
               {messages.map((message) => (
                 <div
                   key={message.id}
                   className={`flex ${
                     message.role === "user" ? "justify-end" : "justify-start"
                   }`}
+                  style={{ paddingTop: '24px', paddingBottom: '24px' }}
                 >
                   <div
-                    className={`rounded-lg px-4 py-2 ${
+                    className={`${
                       message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted prose prose-sm dark:prose-invert max-w-none"
-                    } max-w-[80%]`}
+                        ? "text-gray-800 font-normal"
+                        : "prose prose-sm font-normal text-gray-700 max-w-none"
+                    } max-w-[85%]`}
+                    style={{ fontFamily: 'Inter, sans-serif', fontSize: '15px' }}
                   >
                     {renderMessageContent(message.content, message.role)}
                   </div>
@@ -207,30 +185,36 @@ export function ChatInterface({
             </div>
           </ScrollArea>
           
-          <form onSubmit={handleSubmit} className="sticky bottom-0 mt-3 flex gap-3">
+          <form 
+            onSubmit={handleSubmit} 
+            className="sticky bottom-0 mt-5 flex gap-3"
+            style={{ padding: '20px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', borderRadius: '24px', backgroundColor: 'white' }}
+          >
             <Textarea
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Type your message..."
-              className="min-h-[32px] flex-1 resize-none p-1 pl-4 rounded-full border border-gray-300 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent text-med"
+              className="min-h-[42px] flex-1 resize-none p-2 pl-4 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-transparent text-med shadow-sm font-normal"
+              style={{ fontFamily: 'Inter, sans-serif', fontSize: '15px', borderRadius: '24px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}
             />
             <Button 
               type="submit" 
               disabled={isLoading} 
-              className="px-4"
+              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 shadow-sm"
               onClick={(e) => {
                 e.preventDefault();
                 handleSubmit(e);
               }}
+              style={{ borderRadius: '24px' }}
             >
-              <Send className="h-5 w-5" />
+              <Send className="h-4 w-4" />
             </Button>
           </form>
           
           {showContextMenu && (
             <div 
-              className="fixed z-50 bg-popover text-popover-foreground shadow-md rounded-md py-1 divide-y divide-gray-200 context-menu"
+              className="fixed z-50 bg-white text-gray-800 shadow-sm rounded-md py-1 divide-y divide-gray-100 context-menu"
               style={{ 
                 left: `${contextMenuPosition.x}px`, 
                 top: `${contextMenuPosition.y}px`,
@@ -238,13 +222,13 @@ export function ChatInterface({
               onMouseUp={(e) => e.stopPropagation()}
             >
               <div 
-                className="px-4 py-1 cursor-pointer hover:bg-accent"
+                className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal"
                 onClick={handleQuickDefinition}
               >
                 Quick Definition
               </div>
               <div 
-                className="px-4 py-1 cursor-pointer hover:bg-accent"
+                className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal"
                 onClick={handleCreateThread}
               >
                 Create Thread

@@ -6,6 +6,7 @@ import { Plus, MessageSquare, ZoomIn, ZoomOut, Move, Maximize2, ArrowLeft } from
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatInterface } from "@/components/chat-interface";
 import { ThreadDialog } from "@/components/thread-dialog";
+import { ThreadNodeChat } from "@/components/ThreadNodeChat";
 import { getConversationCount, getAndIncrementConversationCount } from "@/app/actions/database";
 
 interface Message {
@@ -138,6 +139,8 @@ export function ThreadMapManager() {
 
     // Close dialog and reset the prompt
     setIsNewThreadDialogOpen(false);
+    setNewThreadTitle("");
+    setNewThreadPrompt("");
   };
 
   const switchToThread = (threadId: string) => {
@@ -273,10 +276,11 @@ export function ThreadMapManager() {
     const initialY = thread.y;
 
     const moveHandler = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault();
       const dx = (moveEvent.clientX - initialMouseX) / scale;
       const dy = (moveEvent.clientY - initialMouseY) / scale;
       
-      setThreads(threads.map(t => {
+      setThreads(prevThreads => prevThreads.map(t => {
         if (t.id === threadId) {
           return { ...t, x: initialX + dx, y: initialY + dy };
         }
@@ -330,51 +334,38 @@ export function ThreadMapManager() {
             className="absolute origin-center transition-transform duration-75"
             style={{ 
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+              width: "100%",
+              height: "100%",
             }}
           >
             {threads.map((thread) => (
               <div
                 key={thread.id}
-                ref={el => registerThreadNode(thread.id, el)}
-                className={`absolute p-4 rounded-lg shadow-md w-60 transition-shadow cursor-pointer ${
-                  activeThreadId === thread.id
-                    ? "bg-accent text-accent-foreground shadow-lg border-2 border-primary"
-                    : "bg-background hover:shadow-lg border border-border"
-                }`}
+                className="absolute"
+                ref={(el: HTMLDivElement | null) => registerThreadNode(thread.id, el)}
                 style={{
                   left: `${thread.x}px`,
                   top: `${thread.y}px`,
-                  transform: 'translate(-50%, -50%)',
-                  zIndex: activeThreadId === thread.id ? 10 : 1,
+                  transform: "translate(-50%, -50%)",
+                  cursor: "move",
                 }}
-                onClick={() => switchToThread(thread.id)}
-                onMouseDown={(e) => startThreadDrag(thread.id, e)}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-start gap-2">
-                    <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <div className="overflow-hidden">
-                      <div className="font-medium truncate">{thread.title}</div>
-                      <div className="text-xs text-muted-foreground">{formatTimestamp(thread.createdAt)}</div>
-                    </div>
-                  </div>
-                  {/* Fullscreen button */}
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 w-6 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      switchToThread(thread.id);
-                      toggleFullscreen();
-                    }}
-                  >
-                    <Maximize2 className="h-3 w-3" />
-                  </Button>
-                </div>
-                <div className="text-xs truncate text-muted-foreground">
-                  {thread.sourceText || "No source text"}
-                </div>
+                <ThreadNodeChat
+                  threadId={thread.id}
+                  title={thread.title}
+                  createdAt={thread.createdAt}
+                  sourceText={thread.sourceText}
+                  initialPrompt={thread.initialPrompt} // Pass initialPrompt from thread
+                  isActive={activeThreadId === thread.id}
+                  onThreadClick={() => switchToThread(thread.id)}
+                  onDragStart={(e) => startThreadDrag(thread.id, e)}
+                  onFullscreen={() => {
+                    switchToThread(thread.id);
+                    toggleFullscreen();
+                  }}
+                  onIncrementConversationCount={incrementConversationCount}
+                  onCreateNewThread={handleCreateNewThread}
+                />
               </div>
             ))}
           </div>
@@ -410,9 +401,9 @@ export function ThreadMapManager() {
         </div>
       )}
 
-
       {/* Thread Creation Dialog */}
       <ThreadDialog
+        position={{ x: 400, y: 300 }}
         open={isNewThreadDialogOpen}
         onOpenChange={setIsNewThreadDialogOpen}
         selectedText={selectedText}
