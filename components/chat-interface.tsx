@@ -152,7 +152,7 @@ export function ChatInterface({
           className="text-2xl font-medium text-gray-800"
           style={{ fontFamily: 'Inter, sans-serif', fontSize: '16px' }}
         >
-          AI Learning Conversations v0.0.4
+          AI Learning Conversations v0.0.5
         </h1>
       </div>
 
