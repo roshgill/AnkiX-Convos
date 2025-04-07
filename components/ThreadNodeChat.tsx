@@ -174,34 +174,34 @@ export function ThreadNodeChat({
 
   return (
     <div
-      className={`absolute p-2 rounded-3xl shadow-md transition-all duration-200 ${nodeSize} ${
+      className={`absolute p-2 rounded-2xl shadow-md transition-all duration-200 ${nodeSize} ${
         isActive
-          ? "bg-[#3A3A3A] text-white shadow-lg border-2 border-primary"
-          : "bg-[#3A3A3A] text-white hover:shadow-lg border border-border"
+          ? "bg-gray-100 text-gray-800 shadow-lg border border-gray-200"
+          : "bg-gray-100 text-gray-800 hover:shadow-lg border border-gray-200"
       }`}
       style={{
         transform: 'translate(-50%, -50%)',
         zIndex: isActive ? 10 : 1,
-        cursor: 'default', // Set default cursor for the entire component
+        cursor: 'default',
       }}
       onClick={onThreadClick}
     >
       <div 
-        className="flex items-start justify-between mb-1 cursor-move" // Add cursor-move to header
-        onMouseDown={onDragStart} // Only apply drag event to the header
+        className="flex items-start justify-between mb-1 cursor-move"
+        onMouseDown={onDragStart}
       >
         <div className="flex items-start gap-2">
-          <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0 text-gray-700" />
           <div className="overflow-hidden">
-            <div className="font-medium truncate">{title}</div>
-            <div className="text-xs text-muted-foreground">{formatTimestamp(createdAt)}</div>
+            <div className="font-medium truncate text-gray-800">{title}</div>
+            <div className="text-xs text-gray-500">{formatTimestamp(createdAt)}</div>
           </div>
         </div>
         <div className="flex gap-1">
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-6 w-6 p-0"
+            className="h-6 w-6 p-0 text-gray-700"
             onClick={toggleExpanded}
           >
             {isExpanded ? "-" : "+"}
@@ -209,7 +209,7 @@ export function ThreadNodeChat({
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-6 w-6 p-0"
+            className="h-6 w-6 p-0 text-gray-700"
             onClick={(e) => {
               e.stopPropagation();
               onFullscreen();
@@ -217,13 +217,24 @@ export function ThreadNodeChat({
           >
             <Maximize2 className="h-3 w-3" />
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-gray-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.history.back();
+            }}
+          >
+            ← Map
+          </Button>
         </div>
       </div>
 
       {/* Content area with default cursor for text selection */}
-      <div className="cursor-text">
+      <div className="cursor-text bg-white p-4 rounded-xl">
         {!isExpanded ? (
-          <div className="text-xs truncate text-muted-foreground">
+          <div className="text-xs truncate text-gray-500">
           
           </div>
         ) : (
@@ -234,7 +245,7 @@ export function ThreadNodeChat({
             >
               <div className="flex flex-col gap-2">
                 {messages.length === 0 && (
-                  <div className="text-xs text-muted-foreground italic">No messages yet</div>
+                  <div className="text-xs text-gray-400 italic">No messages yet</div>
                 )}
                 {messages.map((message) => (
                   <div
@@ -244,11 +255,12 @@ export function ThreadNodeChat({
                     }`}
                   >
                     <div
-                      className={`text-xl ${
+                      className={`text-sm ${
                         message.role === "user"
-                          ? "text-primary"
-                          : "prose prose-xs dark:prose-invert max-w-none"
+                          ? "text-gray-800 font-normal"
+                          : "prose prose-sm dark:prose-invert max-w-none text-gray-700 font-normal"
                       } max-w-[90%]`}
+                      style={{ fontFamily: 'Inter, sans-serif' }}
                     >
                       {renderMessageContent(message.content, message.role)}
                     </div>
@@ -258,24 +270,28 @@ export function ThreadNodeChat({
               </div>
             </ScrollArea>
             
-            <form onSubmit={handleSubmit} className="flex gap-1 mt-1">
+            <form onSubmit={handleSubmit} className="flex gap-3 items-center mt-2">
               <Textarea
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Type message..."
-                className="min-h-[28px] h-7 flex-1 resize-none p-1 pl-2 text-xl text-black rounded-xl"
+                placeholder="Type your message..."
+                className="min-h-[42px] flex-1 resize-none p-2 pl-4 rounded-full text-sm text-gray-800 shadow-sm"
+                style={{ 
+                  fontFamily: 'Inter, sans-serif',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
+                }}
               />
               <Button 
                 type="submit" 
                 size="sm"
-                className="h-7 w-7 p-0 rounded-xl"
+                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 shadow-sm rounded-full"
                 onClick={(e) => {
                   e.preventDefault();
                   handleSubmit(e);
                 }}
               >
-                <Send className="h-3 w-3" />
+                <Send className="h-4 w-4" />
               </Button>
             </form>
           </>
@@ -285,7 +301,7 @@ export function ThreadNodeChat({
       {/* Context menu for text selection */}
       {showContextMenu && (
         <div 
-          className="fixed z-50 bg-popover text-popover-foreground shadow-md rounded-md py-1 divide-y divide-gray-200 node-context-menu"
+          className="fixed z-50 bg-white text-gray-800 shadow-sm rounded-md py-1 divide-y divide-gray-100 node-context-menu"
           style={{ 
             left: `${contextMenuPosition.x}px`, 
             top: `${contextMenuPosition.y}px`,
@@ -293,13 +309,13 @@ export function ThreadNodeChat({
           onMouseUp={(e) => e.stopPropagation()}
         >
           <div 
-            className="px-3 py-1 cursor-pointer hover:bg-accent text-xs"
+            className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal text-xs"
             onClick={handleQuickDefinition}
           >
             Quick Definition
           </div>
           <div 
-            className="px-3 py-1 cursor-pointer hover:bg-accent text-xs"
+            className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal text-xs"
             onClick={handleCreateThread}
           >
             Create Thread

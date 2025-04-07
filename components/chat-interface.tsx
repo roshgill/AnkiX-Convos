@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import ReactMarkdown from 'react-markdown';
+import { Markdown } from "@/components/ui/markdown"
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -124,7 +124,7 @@ export function ChatInterface({
 
   const renderMessageContent = (content: string, role: string) => {
     if (role === "assistant") {
-      return <ReactMarkdown>{content}</ReactMarkdown>;
+      return <Markdown className="prose prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs">{content}</Markdown>;
     }
     return <p className="whitespace-pre-wrap">{content}</p>;
   };
@@ -143,60 +143,79 @@ export function ChatInterface({
   }, [showContextMenu]);
 
   return (
-    <div className="space-y-6 w-full px-6 flex-1 overflow-hidden bg-white">
-      <div className="flex justify-end">
-        <h1 className="text-2xl font-medium mb-3 text-gray-800" style={{ fontFamily: 'Inter, sans-serif', fontSize: '16px' }}>
+    // 1) Make the container take the full height of the viewport (or parent)
+    <div className="flex flex-col h-screen w-full bg-white">
+      
+      {/* Top header area (if you want) */}
+      <div className="flex justify-end p-4">
+        <h1 
+          className="text-2xl font-medium text-gray-800"
+          style={{ fontFamily: 'Inter, sans-serif', fontSize: '16px' }}
+        >
           AI Learning Conversations v0.0.4
         </h1>
       </div>
 
-      <div className="w-full gap-3">
-        <div 
-          className="bg-white text-gray-800 flex h-[calc(100vh-13rem)] flex-col"
-          onMouseUp={handleTextSelection}
-          style={{ maxWidth: '700px', margin: '0 auto' }}
+      {/* 2) Main content area: flex-1 to fill available space */}
+      <div 
+        className="flex flex-col flex-1 items-center"
+        onMouseUp={handleTextSelection}
+      >
+        {/* 3) Scrollable message area: also use flex-1 */}
+        <ScrollArea 
+          className="flex-1 w-full max-w-[700px] px-6 overflow-y-auto pr-4" 
+          ref={scrollAreaRef}
+          style={{ paddingTop: '24px', paddingBottom: '24px' }}
         >
-          <ScrollArea 
-            className="flex-1 pr-4" 
-            ref={scrollAreaRef} 
-            style={{ paddingTop: '24px', paddingBottom: '24px' }}
-          >
-            <div className="flex flex-col gap-6">
-              {messages.map((message) => (
+          <div className="flex flex-col gap-6">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${
+                  message.role === "user" ? "justify-end" : "justify-start"
+                }`}
+                style={{ paddingTop: '24px', paddingBottom: '24px' }}
+              >
                 <div
-                  key={message.id}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  }`}
-                  style={{ paddingTop: '24px', paddingBottom: '24px' }}
+                  className={`${
+                    message.role === "user"
+                      ? "text-gray-800 font-normal"
+                      : "prose prose-sm font-normal text-gray-700 max-w-none"
+                  } max-w-[85%]`}
+                  style={{ fontFamily: 'Inter, sans-serif', fontSize: '15px' }}
                 >
-                  <div
-                    className={`${
-                      message.role === "user"
-                        ? "text-gray-800 font-normal"
-                        : "prose prose-sm font-normal text-gray-700 max-w-none"
-                    } max-w-[85%]`}
-                    style={{ fontFamily: 'Inter, sans-serif', fontSize: '15px' }}
-                  >
-                    {renderMessageContent(message.content, message.role)}
-                  </div>
+                  {renderMessageContent(message.content, message.role)}
                 </div>
-              ))}
-            </div>
-          </ScrollArea>
-          
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+
+        {/* 4) Form at the bottom (no longer pushed up) */}
+        <div className="w-full max-w-[700px] px-6 pb-4">
           <form 
             onSubmit={handleSubmit} 
-            className="sticky bottom-0 mt-5 flex gap-3"
-            style={{ padding: '20px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', borderRadius: '24px', backgroundColor: 'white' }}
+            className="flex gap-3 items-center"
+            style={{ 
+              padding: '10px 20px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+              borderRadius: '24px',
+              backgroundColor: 'white'
+            }}
           >
             <Textarea
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Type your message..."
-              className="min-h-[42px] flex-1 resize-none p-2 pl-4 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-transparent text-med shadow-sm font-normal"
-              style={{ fontFamily: 'Inter, sans-serif', fontSize: '15px', borderRadius: '24px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}
+              className="min-h-[42px] flex-1 resize-none p-2 pl-4 rounded-md focus:outline-none 
+                         focus:ring-1 focus:ring-gray-300 focus:border-transparent text-med shadow-sm font-normal"
+              style={{ 
+                fontFamily: 'Inter, sans-serif', 
+                fontSize: '15px', 
+                borderRadius: '24px', 
+                boxShadow: '0 2px 6px rgba(0,0,0,0.05)' 
+              }}
             />
             <Button 
               type="submit" 
@@ -211,40 +230,41 @@ export function ChatInterface({
               <Send className="h-4 w-4" />
             </Button>
           </form>
-          
-          {showContextMenu && (
-            <div 
-              className="fixed z-50 bg-white text-gray-800 shadow-sm rounded-md py-1 divide-y divide-gray-100 context-menu"
-              style={{ 
-                left: `${contextMenuPosition.x}px`, 
-                top: `${contextMenuPosition.y}px`,
-              }}
-              onMouseUp={(e) => e.stopPropagation()}
-            >
-              <div 
-                className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal"
-                onClick={handleQuickDefinition}
-              >
-                Quick Definition
-              </div>
-              <div 
-                className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal"
-                onClick={handleCreateThread}
-              >
-                Create Thread
-              </div>
-            </div>
-          )}
-
-          <QuickDefinitionDialog
-            isOpen={isQuickDefOpen}
-            onClose={() => setIsQuickDefOpen(false)}
-            selectedText={selectedText}
-            position={dialogPosition}
-            messages={messages}
-          />
         </div>
       </div>
+
+      {/* Context menu & quick definition dialog */}
+      {showContextMenu && (
+        <div 
+          className="fixed z-50 bg-white text-gray-800 shadow-sm rounded-md py-1 divide-y divide-gray-100 context-menu"
+          style={{ 
+            left: `${contextMenuPosition.x}px`, 
+            top: `${contextMenuPosition.y}px`,
+          }}
+          onMouseUp={(e) => e.stopPropagation()}
+        >
+          <div 
+            className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal"
+            onClick={handleQuickDefinition}
+          >
+            Quick Definition
+          </div>
+          <div 
+            className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal"
+            onClick={handleCreateThread}
+          >
+            Create Thread
+          </div>
+        </div>
+      )}
+
+      <QuickDefinitionDialog
+        isOpen={isQuickDefOpen}
+        onClose={() => setIsQuickDefOpen(false)}
+        selectedText={selectedText}
+        position={dialogPosition}
+        messages={messages}
+      />
     </div>
   );
 }
