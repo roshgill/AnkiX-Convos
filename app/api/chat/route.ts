@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   }
   else {
     // Build a prompt that includes the existing flashcards list.
-    const prompt = `Selected Text: ${selectedText}`;
+    const prompt = `Selected Text: ${selectedText}, Messages History: ${JSON.stringify(messages)}`;
 
     // const prompt = 'Analyse the conversation and the already created flashcards. Return new flashcards that correspond to the current back and forth.';
 
@@ -24,9 +24,10 @@ export async function POST(req: Request) {
       system: `You generate definitions from selected text.`,
       prompt: prompt,
       schema: z.object({
-        Definition: z.array(
+        Definitions: z.array(
           z.object({
-            definition: z.string().describe('Define item')
+            definition: z.string().describe('Define item'),
+            defintionWithConversationalContext: z.string().describe('Define item with conversational context')
           }),
         ),
       }),

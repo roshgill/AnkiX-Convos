@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Message } from "ai";
+import { set } from 'date-fns';
 
 interface QuickDefinitionDialogProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export function QuickDefinitionDialog({
   messages
 }: QuickDefinitionDialogProps) {
   const [definition, setDefinition] = useState({ text: '' });
+  const [defintionWithConversationalContext, setDefinitionWithConversationalContext] = useState({ text: '' });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -45,8 +47,12 @@ export function QuickDefinitionDialog({
         
           console.log('Definition response:', data);
 
-          const definitionText= data.Definition?.[0]?.definition || 'None';
+          const definitionText= data.Definitions?.[0]?.definition || 'None';
           setDefinition({ text: definitionText });
+
+          const definitionWithConversationalContextText = data.Definitions?.[0]?.defintionWithConversationalContext || 'None';
+          setDefinitionWithConversationalContext({ text: definitionWithConversationalContextText });
+
         } catch (error) {
           console.error('Definition error:', error);
           setDefinition({ text: 'Failed to load definition. Please try again.' });
@@ -82,12 +88,23 @@ export function QuickDefinitionDialog({
         </div>
         
         {loading ? (
-          <p className="text-sm">Loading...</p>
+          <p className="text-sm text-gray-500">Loading...</p>
         ) : (
-          <div className="space-y-2">
-            <p className="text-sm">{definition.text}</p>
+          <div className="space-y-4 text-sm text-gray-800">
+            <p>{definition.text}</p>
+
+            <div className="flex items-start space-x-2 pt-2">
+              <span className="mt-1 h-2 w-2 rounded-full bg-gray-400"></span>
+              <div className="space-y-1">
+                <p className="font-medium text-gray-900">In this conversation</p>
+                <p className="text-gray-700">
+                  {defintionWithConversationalContext.text}
+                </p>
+              </div>
+            </div>
           </div>
         )}
+
       </div>
     ) : null
   );

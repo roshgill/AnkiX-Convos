@@ -176,8 +176,8 @@ export function ThreadNodeChat({
     <div
       className={`absolute p-2 rounded-2xl shadow-md transition-all duration-200 ${nodeSize} ${
         isActive
-          ? "bg-gray-100 text-gray-800 shadow-lg border border-gray-200"
-          : "bg-gray-100 text-gray-800 hover:shadow-lg border border-gray-200"
+          ? "bg-white-100 text-gray-800 shadow-lg border border-gray-200"
+          : "bg-white-100 text-gray-800 hover:shadow-lg border border-gray-200"
       }`}
       style={{
         transform: 'translate(-50%, -50%)',
@@ -216,17 +216,6 @@ export function ThreadNodeChat({
             }}
           >
             <Maximize2 className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 text-gray-700"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.history.back();
-            }}
-          >
-            ← Map
           </Button>
         </div>
       </div>
