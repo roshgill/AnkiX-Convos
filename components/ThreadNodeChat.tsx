@@ -8,6 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Maximize2, MessageSquare } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { QuickDefinitionDialog } from "@/components/quick-definition-dialog";
+import { HighlightManager, Highlight, Note } from "@/components/highlight-manager";
+import { HighlightPanel } from "@/components/highlight-panel";
 
 interface ThreadNodeChatProps {
   threadId: string;
@@ -49,6 +51,11 @@ export function ThreadNodeChat({
   const [isQuickDefOpen, setIsQuickDefOpen] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  
+  // Highlight related states
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [showHighlightManager, setShowHighlightManager] = useState(false);
+  const [showHighlightPanel, setShowHighlightPanel] = useState(false);
   
   // Set initial prompt if available and not yet initialized
   useEffect(() => {
@@ -154,6 +161,67 @@ export function ThreadNodeChat({
     e.stopPropagation();
     setShowContextMenu(false);
     onCreateNewThread(selectedText, `Explain this in more detail: "${selectedText}"`);
+  };
+
+  // Handle highlight text selection
+  const handleHighlightText = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Save position before closing context menu
+    const highlightPos = {
+      x: contextMenuPosition.x,
+      y: contextMenuPosition.y
+    };
+    
+    setShowContextMenu(false);
+    setDialogPosition(highlightPos);
+    setShowHighlightManager(true);
+  };
+  
+  // Add a new highlight
+  const handleAddHighlight = (text: string, color: string) => {
+    const newHighlight: Highlight = {
+      id: `highlight-${Date.now()}`,
+      text,
+      color,
+      notes: []
+    };
+    
+    setHighlights(prev => [...prev, newHighlight]);
+    setShowHighlightManager(false);
+  };
+  
+  // Add a note to a highlight
+  const handleAddNote = (highlightId: string, noteContent: string) => {
+    const newNote: Note = {
+      id: `note-${Date.now()}`,
+      content: noteContent,
+      createdAt: new Date()
+    };
+    
+    setHighlights(prev => 
+      prev.map(highlight => 
+        highlight.id === highlightId
+          ? { ...highlight, notes: [...highlight.notes, newNote] }
+          : highlight
+      )
+    );
+  };
+  
+  // Delete a highlight
+  const handleDeleteHighlight = (highlightId: string) => {
+    setHighlights(prev => prev.filter(highlight => highlight.id !== highlightId));
+  };
+  
+  // Delete a note
+  const handleDeleteNote = (highlightId: string, noteId: string) => {
+    setHighlights(prev => 
+      prev.map(highlight => 
+        highlight.id === highlightId
+          ? { ...highlight, notes: highlight.notes.filter(note => note.id !== noteId) }
+          : highlight
+      )
+    );
   };
 
   // Handle clicks outside the context menu
@@ -309,6 +377,12 @@ export function ThreadNodeChat({
           >
             Create Thread
           </div>
+          <div 
+            className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal text-xs"
+            onClick={handleHighlightText}
+          >
+            Highlight
+          </div>
         </div>
       )}
 
@@ -320,6 +394,44 @@ export function ThreadNodeChat({
         position={dialogPosition}
         messages={messages}
       />
+      
+      {/* Highlight Manager */}
+      <HighlightManager
+        isOpen={showHighlightManager}
+        onClose={() => setShowHighlightManager(false)}
+        position={dialogPosition}
+        selectedText={selectedText}
+        onAddHighlight={handleAddHighlight}
+        highlights={highlights}
+        onAddNote={handleAddNote}
+      />
+
+      {/* Button to toggle the highlight panel */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowHighlightPanel(!showHighlightPanel);
+        }}
+        className="absolute bottom-4 right-4 bg-white text-gray-800 shadow-md rounded-full p-1.5 z-40 hover:bg-gray-50"
+        title="Toggle highlights"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"></path>
+        </svg>
+      </button>
+
+      {/* Highlight Panel - slide in from the right inside the node */}
+      {showHighlightPanel && (
+        <div className="absolute right-0 top-0 h-full w-64 z-40 transform transition-transform duration-300 ease-in-out rounded-r-xl overflow-hidden">
+          <HighlightPanel
+            highlights={highlights}
+            onAddNote={handleAddNote}
+            onDeleteHighlight={handleDeleteHighlight}
+            onDeleteNote={handleDeleteNote}
+          />
+        </div>
+      )}
     </div>
   );
 }

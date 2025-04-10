@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChat } from '@ai-sdk/react';
 import { QuickDefinitionDialog } from "@/components/quick-definition-dialog";
+import { HighlightManager, Highlight, Note } from "@/components/highlight-manager";
+import { HighlightPanel } from "@/components/highlight-panel";
 
 // Message class to represent chat messages
 interface Message {
@@ -42,6 +44,11 @@ export function ChatInterface({
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [hasInitializedPrompt, setHasInitializedPrompt] = useState(false);
+  
+  // Highlight related states
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [showHighlightManager, setShowHighlightManager] = useState(false);
+  const [showHighlightPanel, setShowHighlightPanel] = useState(false);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -122,11 +129,116 @@ export function ChatInterface({
     onCreateNewThread(selectedText, `Explain this in more detail: "${selectedText}"`);
   };
 
+  // Handle highlight text selection
+  const handleHighlightText = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Save position before closing context menu
+    const highlightPos = {
+      x: contextMenuPosition.x,
+      y: contextMenuPosition.y
+    };
+    
+    setShowContextMenu(false);
+    setDialogPosition(highlightPos);
+    setShowHighlightManager(true);
+  };
+  
+  // Add a new highlight
+  const handleAddHighlight = (text: string, color: string) => {
+    const newHighlight: Highlight = {
+      id: `highlight-${Date.now()}`,
+      text,
+      color,
+      notes: []
+    };
+    
+    setHighlights(prev => [...prev, newHighlight]);
+    setShowHighlightManager(false);
+  };
+  
+  // Add a note to a highlight
+  const handleAddNote = (highlightId: string, noteContent: string) => {
+    const newNote: Note = {
+      id: `note-${Date.now()}`,
+      content: noteContent,
+      createdAt: new Date()
+    };
+    
+    setHighlights(prev => 
+      prev.map(highlight => 
+        highlight.id === highlightId
+          ? { ...highlight, notes: [...highlight.notes, newNote] }
+          : highlight
+      )
+    );
+  };
+  
+  // Delete a highlight
+  const handleDeleteHighlight = (highlightId: string) => {
+    setHighlights(prev => prev.filter(highlight => highlight.id !== highlightId));
+  };
+  
+  // Delete a note
+  const handleDeleteNote = (highlightId: string, noteId: string) => {
+    setHighlights(prev => 
+      prev.map(highlight => 
+        highlight.id === highlightId
+          ? { ...highlight, notes: highlight.notes.filter(note => note.id !== noteId) }
+          : highlight
+      )
+    );
+  };
+
   const renderMessageContent = (content: string, role: string) => {
     if (role === "assistant") {
-      return <Markdown className="prose prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs">{content}</Markdown>;
+      // For assistant messages with Markdown
+      const highlightedContent = applyHighlightsToText(content);
+      return (
+        <div className="prose prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs">
+          <Markdown>{highlightedContent}</Markdown>
+        </div>
+      );
     }
-    return <p className="whitespace-pre-wrap">{content}</p>;
+    
+    // For user messages, use dangerouslySetInnerHTML to render the HTML
+    return <p 
+      className="whitespace-pre-wrap" 
+      dangerouslySetInnerHTML={{ __html: applyHighlightsToText(content) }}
+    />;
+  };
+
+  // Helper function to apply highlights to text
+  const applyHighlightsToText = (text: string) => {
+    // Start with the original text
+    let highlightedText = text;
+    
+    // Apply each highlight (in reverse order to avoid position issues)
+    [...highlights].reverse().forEach(highlight => {
+      // Find the text to highlight
+      const index = highlightedText.indexOf(highlight.text);
+      if (index !== -1) {
+        // Replace the text with a highlighted version with proper styling
+        highlightedText = 
+          highlightedText.substring(0, index) + 
+          `<span style="background-color: ${getHighlightColor(highlight.color)}; border-radius: 0.25rem; padding: 0 0.25rem;">${highlight.text}</span>` +
+          highlightedText.substring(index + highlight.text.length);
+      }
+    });
+    
+    return highlightedText;
+  };
+
+  // Helper to convert Tailwind class names to actual CSS colors
+  const getHighlightColor = (colorClass: string) => {
+    switch(colorClass) {
+      case 'bg-yellow-200': return '#fef08a';
+      case 'bg-green-200': return '#bbf7d0';
+      case 'bg-blue-200': return '#bfdbfe';
+      case 'bg-purple-200': return '#e9d5ff';
+      case 'bg-pink-200': return '#fbcfe8';
+      default: return '#fef08a'; // Default to yellow
+    }
   };
 
   useEffect(() => {
@@ -152,7 +264,7 @@ export function ChatInterface({
           className="text-2xl font-medium text-gray-800"
           style={{ fontFamily: 'Inter, sans-serif', fontSize: '16px' }}
         >
-          AI Learning Conversations v0.0.5
+          AI Learning Conversations v0.0.6
         </h1>
       </div>
 
@@ -245,6 +357,12 @@ export function ChatInterface({
         >
           <div 
             className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal"
+            onClick={handleHighlightText}
+          >
+            Highlight
+          </div>
+          <div 
+            className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal"
             onClick={handleQuickDefinition}
           >
             Quick Definition
@@ -265,6 +383,41 @@ export function ChatInterface({
         position={dialogPosition}
         messages={messages}
       />
+
+      {/* Highlight Manager */}
+      <HighlightManager
+        isOpen={showHighlightManager}
+        onClose={() => setShowHighlightManager(false)}
+        position={dialogPosition}
+        selectedText={selectedText}
+        onAddHighlight={handleAddHighlight}
+        highlights={highlights}
+        onAddNote={handleAddNote}
+      />
+
+      {/* Button to toggle the highlight panel */}
+      <button
+        onClick={() => setShowHighlightPanel(!showHighlightPanel)}
+        className="fixed bottom-6 right-6 bg-white text-gray-800 shadow-md rounded-full p-2 z-40 hover:bg-gray-50"
+        title="Toggle highlights"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"></path>
+        </svg>
+      </button>
+
+      {/* Highlight Panel - slide in from the right */}
+      {showHighlightPanel && (
+        <div className="fixed right-0 top-0 h-full w-72 z-40 transform transition-transform duration-300 ease-in-out">
+          <HighlightPanel
+            highlights={highlights}
+            onAddNote={handleAddNote}
+            onDeleteHighlight={handleDeleteHighlight}
+            onDeleteNote={handleDeleteNote}
+          />
+        </div>
+      )}
     </div>
   );
 }

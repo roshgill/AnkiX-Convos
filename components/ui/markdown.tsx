@@ -4,6 +4,7 @@ import { memo, useId, useMemo } from "react"
 import ReactMarkdown, { Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { CodeBlock, CodeBlockCode } from "./code-block"
+import rehypeRaw from 'rehype-raw'  // Add this import
 
 export type MarkdownProps = {
   children: string
@@ -77,30 +78,18 @@ const MemoizedMarkdownBlock = memo(
 
 MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock"
 
-function MarkdownComponent({
-  children,
-  id,
-  className,
-  components = INITIAL_COMPONENTS,
-}: MarkdownProps) {
-  const generatedId = useId()
-  const blockId = id ?? generatedId
-  const blocks = useMemo(() => parseMarkdownIntoBlocks(children), [children])
-
+export function Markdown({ children, ...props }: { children: string; className?: string }) {
   return (
-    <div className={className}>
-      {blocks.map((block, index) => (
-        <MemoizedMarkdownBlock
-          key={`${blockId}-block-${index}`}
-          content={block}
-          components={components}
-        />
-      ))}
-    </div>
-  )
+    <ReactMarkdown 
+      {...props}
+      rehypePlugins={[rehypeRaw]}  // Add this to allow HTML
+    >
+      {children}
+    </ReactMarkdown>
+  );
 }
 
-const Markdown = memo(MarkdownComponent)
-Markdown.displayName = "Markdown"
+const MarkdownComponent = memo(Markdown)
+MarkdownComponent.displayName = "MarkdownComponent"
 
-export { Markdown }
+export { MarkdownComponent }
