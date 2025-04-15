@@ -179,7 +179,8 @@ export function ThreadNodeChat({
   };
   
   // Add a new highlight
-  const handleAddHighlight = (text: string, color: string) => {
+  const handleAddHighlight = (text: string, color: string, noteContent?: string) => {
+    // Create new highlight
     const newHighlight: Highlight = {
       id: `highlight-${Date.now()}`,
       text,
@@ -188,7 +189,15 @@ export function ThreadNodeChat({
     };
     
     setHighlights(prev => [...prev, newHighlight]);
-    setShowHighlightManager(false);
+    
+    // If there was a note provided, add it
+    if (noteContent) {
+      setTimeout(() => {
+        handleAddNote(newHighlight.id, noteContent);
+      }, 0);
+    }
+    
+    return newHighlight.id; // Return the ID for immediate use
   };
   
   // Add a note to a highlight
@@ -404,6 +413,16 @@ export function ThreadNodeChat({
         onAddHighlight={handleAddHighlight}
         highlights={highlights}
         onAddNote={handleAddNote}
+        onUpdateHighlightColor={(highlightId, color) => {
+          setHighlights(prev =>
+            prev.map(highlight =>
+              highlight.id === highlightId
+                ? { ...highlight, color }
+                : highlight
+            )
+          );
+        }}
+        onDeleteNote={handleDeleteNote}
       />
 
       {/* Button to toggle the highlight panel */}

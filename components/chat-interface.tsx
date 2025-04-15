@@ -1,41 +1,59 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+// useState: React hook for managing state variables of a component
+// useRef: Hook that creates mutable object persisting across renders and remains for the full lifetime of the component
+// useEffect: React hook that runs side effects after render, with optional dependecy array to control when effects re-execute
+import { useState, useRef, useEffect, use } from "react";
+
+// Markdown: A component to render Markdown content (e.g. for displaying chat messages with specific formatting)
+// Send: An icon from the lucide-react library
+// Button, Textarea, ScrollArea: UI components for buttons, text areas, and scrollable areas
 import { Markdown } from "@/components/ui/markdown"
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+// useChat hook via aisdk by Vercel:
+// Used to manage chat messages and input
+// Don't have to re-create simple handler functions (e.g. resetting input to null after user presses submit, etc.)
 import { useChat } from '@ai-sdk/react';
+
+// Components from other files
 import { QuickDefinitionDialog } from "@/components/quick-definition-dialog";
 import { HighlightManager, Highlight, Note } from "@/components/highlight-manager";
 import { HighlightPanel } from "@/components/highlight-panel";
 
-// Message class to represent chat messages
+// Message class to represent chat messages. It's a data structure
 interface Message {
   id: string;
   content: string;
   role: "user" | "assistant" | "system" | "data";
 }
 
+// Chat interface props. Data structure to represent the chat interface
+// Props means the properties that the component can accept when it's rendered
 interface ChatInterfaceProps {
-  threadId: string;
-  initialPrompt?: string;
-  conversationCount: number | null;
-  onCreateNewThread: (text: string, prompt: string) => void;
-  onIncrementConversationCount: () => void;
+  threadId?: string;
+  initialPrompt?: string; // For thread creation
+  // conversationCount?: number | null; // Required so that it can be used to update the conversation count in the database
+  // onCreateNewThread?: (text: string, prompt: string) => void; // Prop drilling technique where a function is passed from a parent component to a child, to allow the child to trigger actions in the parent's scope
+  // onIncrementConversationCount?: () => void; // Can be used to update the conversation count in the database; and doesn't need to be defined here
 }
 
-// ChatInterface component to render chat interface + functionality
+// ChatInterface component to render chat interface + associated functionality
 export function ChatInterface({ 
   threadId, 
-  initialPrompt = "", 
-  conversationCount,
-  onCreateNewThread,
-  onIncrementConversationCount
+  // initialPrompt = "",
+  // conversationCount,
+  // onCreateNewThread,
+  // onIncrementConversationCount
 }: ChatInterfaceProps) {
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // useChat hook from aisdk to manage chat messages and input
+  // threadId: used to identify the specific chat thread; separates different threads and state variables/functions 
   const { messages, input, handleInputChange, handleSubmit: chatHandleSubmit, setInput } = useChat({ id: threadId });
 
   const [selectedText, setSelectedText] = useState("");
@@ -48,8 +66,17 @@ export function ChatInterface({
   // Highlight related states
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [showHighlightManager, setShowHighlightManager] = useState(false);
-  const [showHighlightPanel, setShowHighlightPanel] = useState(false);
+  const [currentHighlightId, setCurrentHighlightId] = useState<string | null>(null);
 
+  // Testing purposes for highlighting based on position and not text
+  const [selectedTextInfo, setSelectedTextInfo] = useState<{
+    text: string;
+    messageId: string;
+    offset: number;
+  }>({ text: '', messageId: '', offset: 0 });
+
+
+  // Scroll to the bottom of the chat area when new messages are added
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
@@ -57,59 +84,133 @@ export function ChatInterface({
   }, [messages]);
 
   // Set initial prompt if available and not yet initialized
-  useEffect(() => {
-    if (initialPrompt && !hasInitializedPrompt && messages.length === 0) {
-      setInput(initialPrompt);
-      setHasInitializedPrompt(true);
-    }
-  }, [initialPrompt, hasInitializedPrompt, messages.length, setInput]);
+  // useEffect(() => {
+    // if (initialPrompt && !hasInitializedPrompt && messages.length === 0) {
+    //   setInput(initialPrompt);
+    //   setHasInitializedPrompt(true);
+    // }
+  // }, [initialPrompt, hasInitializedPrompt, messages.length, setInput]);
 
+  // Calls chatHandleSubmit, a hook provided by aisdk, which takes in the form event data and resets the input field, and appends the messages array
   const handleSubmit = async (e: React.FormEvent) => {
-    onIncrementConversationCount();
+    // onIncrementConversationCount();
     chatHandleSubmit(e);
   };
 
-  // Separate effect for auto-submission
-  useEffect(() => {
-    if (initialPrompt && hasInitializedPrompt && input === initialPrompt) {
-      // Use setTimeout to ensure this runs after the state update cycle
-      setTimeout(() => {
-        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-        handleSubmit(fakeEvent);
-      }, 100);
-    }
-  }, [hasInitializedPrompt, initialPrompt, input, handleSubmit]);
+  // Separate effect for auto-submission (for creating threads and initial prompts)
+  // useEffect(() => {
+  //   if (initialPrompt && hasInitializedPrompt && input === initialPrompt) {
+  //     // Use setTimeout to ensure this runs after the state update cycle
+  //     setTimeout(() => {
+  //       // What does this do ? Especially the syntax meaning
+  //       const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+  //       handleSubmit(fakeEvent);
+  //     }, 100);
+  //   }
+  // }, [hasInitializedPrompt, initialPrompt, input, handleSubmit]);
 
+  // Handle keydown events in the text area
+  // To allow users to create a new line with Shift + Enter
+  // and submit the form with Enter
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+      e.preventDefault(); // Stops the browser's default form submission behavior (which would refresh the page)
       handleSubmit(e as unknown as React.FormEvent);
     }
   };
 
+  // Helper function to compute the text offset within a container element given a text node and an offset within that node.
+  function getTextOffset(container: HTMLElement, targetNode: Node, nodeOffset: number): number {
+    let offset = 0;
+    let found = false;
+
+    // Use a recursive function to traverse text nodes in order
+    function traverse(node: Node): void {
+      // If we've reached the target node, add the nodeOffset and stop.
+      if (node === targetNode) {
+        offset += nodeOffset;
+        found = true;
+        return;
+      }
+
+      // If it's a text node, add its length.
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += node.textContent?.length || 0;
+      }
+
+      // Iterate over child nodes if not reached the target.
+      for (const child of Array.from(node.childNodes)) {
+        if (found) break; // Stop traversal once target is found
+        traverse(child);
+      }
+    }
+
+    traverse(container);
+    return offset;
+  }
+
+  // Handle text selection and context menu display
   const handleTextSelection = (e: React.MouseEvent) => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
       setShowContextMenu(false);
       return;
     }
-
+  
     const text = selection.toString().trim();
     if (text.length > 0) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      
       setSelectedText(text);
-      setContextMenuPosition({
-        x: e.clientX,
-        y: e.clientY
-      });
-      setShowContextMenu(true);
+  
+      // Get the range to find position information
+      const range = selection.getRangeAt(0);
+      
+      // Find the message element containing this selection
+      const messageElement = findClosestMessageElement(range.startContainer);
+      
+      if (messageElement) {
+        const messageId = messageElement.getAttribute('data-message-id') || '';
+        console.log("Selected message ID:", messageId);
+  
+        // Compute the overall offset using our helper function:
+        const offset = getTextOffset(messageElement, range.startContainer, range.startOffset);
+        console.log("Calculated offset:", offset, "for text:", text);
+  
+        setSelectedTextInfo({
+          text,
+          messageId,
+          offset
+        });
+      } else {
+        console.log("Could not find message element for selection");
+      }
     }
+  
+    setContextMenuPosition({
+      x: e.clientX,
+      y: e.clientY
+    });
+    setShowContextMenu(true);
   };
 
+  // Helper to find the closest message element
+  const findClosestMessageElement = (node: Node): HTMLElement | null => {
+    let current = node;
+    while (current && current !== document.body) {
+      if (current instanceof HTMLElement && current.hasAttribute('data-message-id')) {
+        return current;
+      }
+      if (current.parentNode) {
+        current = current.parentNode;
+      } else {
+        break;
+      }
+    }
+    return null;
+  };
+
+  // Handle context menu actions
   const handleQuickDefinition = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation(); // Prevent event bubbling and firing up handleTextSelection again
     console.log("Selected text for quick definition:", selectedText);
 
     // Save current position before closing context menu
@@ -118,18 +219,20 @@ export function ChatInterface({
       y: contextMenuPosition.y
     };
 
+    // Close context menu and open quick definition dialog
     setShowContextMenu(false);
     setDialogPosition(dialogPos);
     setIsQuickDefOpen(true);
   };
 
-  const handleCreateThread = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowContextMenu(false);
-    onCreateNewThread(selectedText, `Explain this in more detail: "${selectedText}"`);
-  };
+  // Handle creating a new thread
+  // const handleCreateThread = (e: React.MouseEvent) => {
+  //   e.stopPropagation();
+  //   setShowContextMenu(false);
+  //   onCreateNewThread(selectedText, `Explain this in more detail: "${selectedText}"`);
+  // };
 
-  // Handle highlight text selection
+  // Handle highlight-text feature (When user presses "Highlight" in menu)
   const handleHighlightText = (e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -141,22 +244,28 @@ export function ChatInterface({
     
     setShowContextMenu(false);
     setDialogPosition(highlightPos);
+    // setCurrentHighlightId(null); // Reset current highlight ID
     setShowHighlightManager(true);
   };
   
   // Add a new highlight
-  const handleAddHighlight = (text: string, color: string) => {
+  // Mostly used to create a new highlight and adding it to the highlights array to oversee
+  // Notes are handled in the HighlightManager component
+  const handleAddHighlight = (text: string, color: string, noteContent?: string) => {
+    // Create new highlight object from the text, and notes if any
     const newHighlight: Highlight = {
       id: `highlight-${Date.now()}`,
       text,
       color,
-      notes: []
+      notes: [],
+      position: selectedTextInfo.offset, // Use the offset from the selected text,
+      messageId: selectedTextInfo.messageId // Use the message ID from the selected text
     };
     
-    setHighlights(prev => [...prev, newHighlight]);
-    setShowHighlightManager(false);
+    setHighlights(prev => [...prev, newHighlight]); // Update highlights state with the new highlight
+    return newHighlight.id; // Return the ID for immediate use
   };
-  
+
   // Add a note to a highlight
   const handleAddNote = (highlightId: string, noteContent: string) => {
     const newNote: Note = {
@@ -164,9 +273,9 @@ export function ChatInterface({
       content: noteContent,
       createdAt: new Date()
     };
-    
-    setHighlights(prev => 
-      prev.map(highlight => 
+
+    setHighlights(prev =>
+      prev.map(highlight =>
         highlight.id === highlightId
           ? { ...highlight, notes: [...highlight.notes, newNote] }
           : highlight
@@ -174,9 +283,15 @@ export function ChatInterface({
     );
   };
   
-  // Delete a highlight
-  const handleDeleteHighlight = (highlightId: string) => {
-    setHighlights(prev => prev.filter(highlight => highlight.id !== highlightId));
+  // Update a highlight's color
+  const handleUpdateHighlightColor = (highlightId: string, color: string) => {
+    setHighlights(prev =>
+      prev.map(highlight =>
+        highlight.id === highlightId
+          ? { ...highlight, color }
+          : highlight
+      )
+    );
   };
   
   // Delete a note
@@ -190,12 +305,22 @@ export function ChatInterface({
     );
   };
 
-  const renderMessageContent = (content: string, role: string) => {
+  // Delete a highlight
+  const handleDeleteHighlight = (highlightId: string) => {
+    setHighlights(prev => prev.filter(highlight => highlight.id !== highlightId));
+  };
+  
+
+  // Render message content based on role
+  const renderMessageContent = (content: string, role: string, messageId: string) => {
     if (role === "assistant") {
       // For assistant messages with Markdown
-      const highlightedContent = applyHighlightsToText(content);
+      const highlightedContent = applyHighlightsToText(content, messageId);
       return (
-        <div className="prose prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs">
+        <div 
+          className="prose prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs"
+          data-message-id={messageId} // Add ID here
+        >
           <Markdown>{highlightedContent}</Markdown>
         </div>
       );
@@ -204,29 +329,64 @@ export function ChatInterface({
     // For user messages, use dangerouslySetInnerHTML to render the HTML
     return <p 
       className="whitespace-pre-wrap" 
-      dangerouslySetInnerHTML={{ __html: applyHighlightsToText(content) }}
+      data-message-id={messageId} // Add ID here
+      dangerouslySetInnerHTML={{ __html: applyHighlightsToText(content, messageId) }}
     />;
   };
 
   // Helper function to apply highlights to text
-  const applyHighlightsToText = (text: string) => {
-    // Start with the original text
-    let highlightedText = text;
+  const applyHighlightsToText = (text: string, messageId: string) => {
+    // Filter highlights for this specific message
+    const messageHighlights = highlights.filter(h => h.messageId === messageId);
     
-    // Apply each highlight (in reverse order to avoid position issues)
-    [...highlights].reverse().forEach(highlight => {
-      // Find the text to highlight
-      const index = highlightedText.indexOf(highlight.text);
-      if (index !== -1) {
-        // Replace the text with a highlighted version with proper styling
-        highlightedText = 
-          highlightedText.substring(0, index) + 
-          `<span style="background-color: ${getHighlightColor(highlight.color)}; border-radius: 0.25rem; padding: 0 0.25rem;">${highlight.text}</span>` +
-          highlightedText.substring(index + highlight.text.length);
+    if (messageHighlights.length === 0) {
+      return text; // No highlights for this message
+    }
+    
+    // Sort by position (ascending order) to process from start to end
+    const sortedHighlights = [...messageHighlights].sort((a, b) => a.position - b.position);
+    
+    // Create parts array to build the highlighted text
+    let parts = [];
+    let currentIndex = 0;
+    
+    // Apply each highlight
+    for (const highlight of sortedHighlights) {
+      // Check if the position is valid
+      if (highlight.position >= currentIndex && 
+          highlight.position + highlight.text.length <= text.length) {
+        
+        // Add text before this highlight
+        if (highlight.position > currentIndex) {
+          parts.push(text.substring(currentIndex, highlight.position));
+        }
+        
+        // Generate the highlighted span HTML
+        const highlightSpan = `<span 
+          class="highlighted-text" 
+          data-highlight-id="${highlight.id}" 
+          style="background-color: ${getHighlightColor(highlight.color)}; 
+                border-radius: 0.25rem; 
+                padding: 0 0.25rem;
+                cursor: pointer;
+                transition: filter 0.2s ease;
+                position: relative;"
+        >${highlight.text}</span>`;
+        
+        parts.push(highlightSpan);
+        
+        // Update current index to after this highlight
+        currentIndex = highlight.position + highlight.text.length;
       }
-    });
+    }
     
-    return highlightedText;
+    // Add any remaining text after the last highlight
+    if (currentIndex < text.length) {
+      parts.push(text.substring(currentIndex));
+    }
+    
+    // Join all parts to get the final result
+    return parts.join('');
   };
 
   // Helper to convert Tailwind class names to actual CSS colors
@@ -241,6 +401,7 @@ export function ChatInterface({
     }
   };
 
+  // Handle clicks outside the context menu to close it
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       // Only handle clicks outside the context menu
@@ -254,6 +415,67 @@ export function ChatInterface({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showContextMenu]);
 
+  // Handle clicks on highlighted text
+  useEffect(() => {
+    const handleHighlightClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Check if the clicked element is a highlighted text span
+      if (target.classList.contains('highlighted-text')) {
+        const highlightId = target.getAttribute('data-highlight-id');
+        if (highlightId) {
+          // Find the highlight in our state
+          const clickedHighlight = highlights.find(h => h.id === highlightId);
+          if (clickedHighlight) {
+            // Set the selected text and position for the highlight manager
+            setSelectedText(clickedHighlight.text);
+            setCurrentHighlightId(highlightId);
+            setDialogPosition({
+              x: e.clientX,
+              y: e.clientY
+            });
+            // Show the highlight manager
+            setShowHighlightManager(true);
+          }
+        }
+      }
+    };
+    
+    // Add event listener for highlight clicks
+    document.addEventListener('click', handleHighlightClick);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('click', handleHighlightClick);
+    };
+  }, [highlights]);
+  
+  // Add hover effect for highlighted text
+  useEffect(() => {
+    const addHoverEffects = () => {
+      const highlightedElements = document.querySelectorAll('.highlighted-text');
+      
+      highlightedElements.forEach(element => {
+        element.addEventListener('mouseenter', () => {
+          (element as HTMLElement).style.filter = 'brightness(0.95)';
+          (element as HTMLElement).style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+        });
+        
+        element.addEventListener('mouseleave', () => {
+          (element as HTMLElement).style.filter = 'brightness(1)';
+          (element as HTMLElement).style.boxShadow = 'none';
+        });
+      });
+    };
+    
+    // Small timeout to ensure DOM is updated with new highlights
+    const timeoutId = setTimeout(addHoverEffects, 100);
+    
+    // Cleanup
+    return () => clearTimeout(timeoutId);
+  }, [messages, highlights]);
+  
+  // The HTML/CSS structure code for the chat interface. Works in tandem with the TypeScript code above
   return (
     // 1) Make the container take the full height of the viewport (or parent)
     <div className="flex flex-col h-screen w-full bg-white">
@@ -283,12 +505,14 @@ export function ChatInterface({
             {messages.map((message) => (
               <div
                 key={message.id}
+                data-message-id={message.id} // Add ID here
                 className={`flex ${
                   message.role === "user" ? "justify-end" : "justify-start"
                 }`}
                 style={{ paddingTop: '24px', paddingBottom: '24px' }}
               >
                 <div
+                  data-message-id={message.id} // Add ID here as well
                   className={`${
                     message.role === "user"
                       ? "text-gray-800 font-normal"
@@ -296,7 +520,7 @@ export function ChatInterface({
                   } max-w-[85%]`}
                   style={{ fontFamily: 'Inter, sans-serif', fontSize: '15px' }}
                 >
-                  {renderMessageContent(message.content, message.role)}
+                  {renderMessageContent(message.content, message.role, message.id)}
                 </div>
               </div>
             ))}
@@ -334,7 +558,7 @@ export function ChatInterface({
               disabled={isLoading} 
               className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 shadow-sm"
               onClick={(e) => {
-                e.preventDefault();
+                e.preventDefault(); // Not sure what this does, maybe a delay
                 handleSubmit(e);
               }}
               style={{ borderRadius: '24px' }}
@@ -369,7 +593,7 @@ export function ChatInterface({
           </div>
           <div 
             className="px-4 py-1 cursor-pointer hover:bg-gray-50 font-normal"
-            onClick={handleCreateThread}
+            onClick={() => {}}
           >
             Create Thread
           </div>
@@ -393,31 +617,10 @@ export function ChatInterface({
         onAddHighlight={handleAddHighlight}
         highlights={highlights}
         onAddNote={handleAddNote}
+        onUpdateHighlightColor={handleUpdateHighlightColor}
+        onDeleteNote={handleDeleteNote}
       />
 
-      {/* Button to toggle the highlight panel */}
-      <button
-        onClick={() => setShowHighlightPanel(!showHighlightPanel)}
-        className="fixed bottom-6 right-6 bg-white text-gray-800 shadow-md rounded-full p-2 z-40 hover:bg-gray-50"
-        title="Toggle highlights"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-          <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"></path>
-        </svg>
-      </button>
-
-      {/* Highlight Panel - slide in from the right */}
-      {showHighlightPanel && (
-        <div className="fixed right-0 top-0 h-full w-72 z-40 transform transition-transform duration-300 ease-in-out">
-          <HighlightPanel
-            highlights={highlights}
-            onAddNote={handleAddNote}
-            onDeleteHighlight={handleDeleteHighlight}
-            onDeleteNote={handleDeleteNote}
-          />
-        </div>
-      )}
     </div>
   );
 }
