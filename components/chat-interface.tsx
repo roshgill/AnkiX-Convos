@@ -315,11 +315,12 @@ export function ChatInterface({
   const renderMessageContent = (content: string, role: string, messageId: string) => {
     if (role === "assistant") {
       // For assistant messages with Markdown
+      // Apply highlights before passing to Markdown component
       const highlightedContent = applyHighlightsToText(content, messageId);
       return (
         <div 
           className="prose prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs"
-          data-message-id={messageId} // Add ID here
+          data-message-id={messageId}
         >
           <Markdown>{highlightedContent}</Markdown>
         </div>
@@ -329,7 +330,7 @@ export function ChatInterface({
     // For user messages, use dangerouslySetInnerHTML to render the HTML
     return <p 
       className="whitespace-pre-wrap" 
-      data-message-id={messageId} // Add ID here
+      data-message-id={messageId}
       dangerouslySetInnerHTML={{ __html: applyHighlightsToText(content, messageId) }}
     />;
   };
@@ -352,9 +353,10 @@ export function ChatInterface({
     
     // Apply each highlight
     for (const highlight of sortedHighlights) {
-      // Check if the position is valid
+      // Check if the position is valid and text matches
       if (highlight.position >= currentIndex && 
-          highlight.position + highlight.text.length <= text.length) {
+          highlight.position + highlight.text.length <= text.length &&
+          text.substring(highlight.position, highlight.position + highlight.text.length) === highlight.text) {
         
         // Add text before this highlight
         if (highlight.position > currentIndex) {
@@ -377,6 +379,32 @@ export function ChatInterface({
         
         // Update current index to after this highlight
         currentIndex = highlight.position + highlight.text.length;
+      } else if (text.includes(highlight.text)) {
+        // If position is invalid but text exists in message, try to find it
+        const textIndex = text.indexOf(highlight.text, currentIndex);
+        if (textIndex !== -1) {
+          // Add text before this highlight
+          if (textIndex > currentIndex) {
+            parts.push(text.substring(currentIndex, textIndex));
+          }
+          
+          // Generate the highlighted span HTML
+          const highlightSpan = `<span 
+            class="highlighted-text" 
+            data-highlight-id="${highlight.id}" 
+            style="background-color: ${getHighlightColor(highlight.color)}; 
+                  border-radius: 0.25rem; 
+                  padding: 0 0.25rem;
+                  cursor: pointer;
+                  transition: filter 0.2s ease;
+                  position: relative;"
+          >${highlight.text}</span>`;
+          
+          parts.push(highlightSpan);
+          
+          // Update current index to after this highlight
+          currentIndex = textIndex + highlight.text.length;
+        }
       }
     }
     

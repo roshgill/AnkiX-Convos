@@ -52,6 +52,13 @@ export function ThreadNodeChat({
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   
+  // Selected text info for highlighting
+  const [selectedTextInfo, setSelectedTextInfo] = useState<{
+    text: string;
+    messageId: string;
+    offset: number;
+  }>({ text: '', messageId: '', offset: 0 });
+  
   // Highlight related states
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [showHighlightManager, setShowHighlightManager] = useState(false);
@@ -106,11 +113,121 @@ export function ThreadNodeChat({
     }
   };
 
-  const renderMessageContent = (content: string, role: string) => {
+  const renderMessageContent = (content: string, role: string, messageId: string) => {
+    // Apply highlights to the text before rendering
+    const highlightedContent = applyHighlightsToText(content, messageId);
+    
     if (role === "assistant") {
-      return <ReactMarkdown>{content}</ReactMarkdown>;
+      return (
+        <div 
+          className="prose prose-sm"
+          data-message-id={messageId}
+          dangerouslySetInnerHTML={{ __html: highlightedContent }}
+        />
+      );
     }
-    return <p className="whitespace-pre-wrap">{content}</p>;
+    
+    return (
+      <p 
+        className="whitespace-pre-wrap" 
+        data-message-id={messageId}
+        dangerouslySetInnerHTML={{ __html: highlightedContent }}
+      />
+    );
+  };
+  
+  // Helper function to apply highlights to text
+  const applyHighlightsToText = (text: string, messageId: string) => {
+    // Filter highlights for this specific message
+    const messageHighlights = highlights.filter(h => h.messageId === messageId);
+    
+    if (messageHighlights.length === 0) {
+      return text; // No highlights for this message
+    }
+    
+    // Sort by position (ascending order) to process from start to end
+    const sortedHighlights = [...messageHighlights].sort((a, b) => a.position - b.position);
+    
+    // Create parts array to build the highlighted text
+    let parts = [];
+    let currentIndex = 0;
+    
+    // Apply each highlight
+    for (const highlight of sortedHighlights) {
+      // Check if the position is valid and text matches
+      if (highlight.position >= currentIndex && 
+          highlight.position + highlight.text.length <= text.length &&
+          text.substring(highlight.position, highlight.position + highlight.text.length) === highlight.text) {
+        
+        // Add text before this highlight
+        if (highlight.position > currentIndex) {
+          parts.push(text.substring(currentIndex, highlight.position));
+        }
+        
+        // Generate the highlighted span HTML
+        const highlightSpan = `<span 
+          class="highlighted-text" 
+          data-highlight-id="${highlight.id}" 
+          style="background-color: ${getHighlightColor(highlight.color)}; 
+                border-radius: 0.25rem; 
+                padding: 0 0.25rem;
+                cursor: pointer;
+                transition: filter 0.2s ease;
+                position: relative;"
+        >${highlight.text}</span>`;
+        
+        parts.push(highlightSpan);
+        
+        // Update current index to after this highlight
+        currentIndex = highlight.position + highlight.text.length;
+      } else if (text.includes(highlight.text)) {
+        // If position is invalid but text exists in message, try to find it
+        const textIndex = text.indexOf(highlight.text, currentIndex);
+        if (textIndex !== -1) {
+          // Add text before this highlight
+          if (textIndex > currentIndex) {
+            parts.push(text.substring(currentIndex, textIndex));
+          }
+          
+          // Generate the highlighted span HTML
+          const highlightSpan = `<span 
+            class="highlighted-text" 
+            data-highlight-id="${highlight.id}" 
+            style="background-color: ${getHighlightColor(highlight.color)}; 
+                  border-radius: 0.25rem; 
+                  padding: 0 0.25rem;
+                  cursor: pointer;
+                  transition: filter 0.2s ease;
+                  position: relative;"
+          >${highlight.text}</span>`;
+          
+          parts.push(highlightSpan);
+          
+          // Update current index to after this highlight
+          currentIndex = textIndex + highlight.text.length;
+        }
+      }
+    }
+    
+    // Add any remaining text after the last highlight
+    if (currentIndex < text.length) {
+      parts.push(text.substring(currentIndex));
+    }
+    
+    // Join all parts to get the final result
+    return parts.join('');
+  };
+  
+  // Helper to convert Tailwind class names to actual CSS colors
+  const getHighlightColor = (colorClass: string) => {
+    switch(colorClass) {
+      case 'bg-yellow-200': return '#fef08a';
+      case 'bg-green-200': return '#bbf7d0';
+      case 'bg-blue-200': return '#bfdbfe';
+      case 'bg-purple-200': return '#e9d5ff';
+      case 'bg-pink-200': return '#fbcfe8';
+      default: return '#fef08a'; // Default to yellow
+    }
   };
 
   // Toggle expanded state
@@ -119,20 +236,38 @@ export function ThreadNodeChat({
     setIsExpanded(!isExpanded);
   };
 
-  // Handle text selection
+  // Handle text selection and context menu
   const handleTextSelection = (e: React.MouseEvent) => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
-      setShowContextMenu(false);
       return;
     }
 
     const text = selection.toString().trim();
     if (text.length > 0) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      
       setSelectedText(text);
+      
+      // Get the range to find position information
+      const range = selection.getRangeAt(0);
+      
+      // Find the message element containing this selection
+      const messageElement = findClosestMessageElement(range.startContainer);
+      
+      if (messageElement) {
+        const messageId = messageElement.getAttribute('data-message-id') || '';
+        
+        // Compute the text offset
+        const offset = getTextOffset(messageElement, range.startContainer, range.startOffset);
+        
+        // Save the info about selected text
+        setSelectedTextInfo({
+          text,
+          messageId,
+          offset
+        });
+      }
+      
+      // Position the context menu
       setContextMenuPosition({
         x: e.clientX,
         y: e.clientY
@@ -140,6 +275,52 @@ export function ThreadNodeChat({
       setShowContextMenu(true);
     }
   };
+
+  // Helper to find the closest message element
+  const findClosestMessageElement = (node: Node): HTMLElement | null => {
+    let current = node;
+    while (current && current !== document.body) {
+      if (current instanceof HTMLElement && current.hasAttribute('data-message-id')) {
+        return current;
+      }
+      if (current.parentNode) {
+        current = current.parentNode;
+      } else {
+        break;
+      }
+    }
+    return null;
+  };
+
+  // Helper function to compute text offset
+  function getTextOffset(container: HTMLElement, targetNode: Node, nodeOffset: number): number {
+    let offset = 0;
+    let found = false;
+
+    // Use a recursive function to traverse text nodes in order
+    function traverse(node: Node): void {
+      // If we've reached the target node, add the nodeOffset and stop.
+      if (node === targetNode) {
+        offset += nodeOffset;
+        found = true;
+        return;
+      }
+
+      // If it's a text node, add its length.
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += node.textContent?.length || 0;
+      }
+
+      // Iterate over child nodes if not reached the target.
+      for (const child of Array.from(node.childNodes)) {
+        if (found) break; // Stop traversal once target is found
+        traverse(child);
+      }
+    }
+
+    traverse(container);
+    return offset;
+  }
 
   // Handle quick definition
   const handleQuickDefinition = (e: React.MouseEvent) => {
@@ -185,7 +366,9 @@ export function ThreadNodeChat({
       id: `highlight-${Date.now()}`,
       text,
       color,
-      notes: []
+      notes: [],
+      position: selectedTextInfo.offset, // Add text position
+      messageId: selectedTextInfo.messageId // Add message ID
     };
     
     setHighlights(prev => [...prev, newHighlight]);
@@ -328,7 +511,7 @@ export function ThreadNodeChat({
                       } max-w-[90%]`}
                       style={{ fontFamily: 'Inter, sans-serif' }}
                     >
-                      {renderMessageContent(message.content, message.role)}
+                      {renderMessageContent(message.content, message.role, message.id)}
                     </div>
                   </div>
                 ))}
