@@ -23,6 +23,8 @@ import { useChat } from '@ai-sdk/react';
 import { QuickDefinitionDialog } from "@/components/quick-definition-dialog";
 import { HighlightManager, Highlight, Note } from "@/components/highlight-manager";
 import { HighlightPanel } from "@/components/highlight-panel";
+import { HighlightManagerPortal, HighlightPanelPortal } from "@/components/highlightmanagerportal";
+import { Bookmark } from "lucide-react";
 
 // Message class to represent chat messages. It's a data structure
 interface Message {
@@ -66,6 +68,7 @@ export function ChatInterface({
   // Highlight related states
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [showHighlightManager, setShowHighlightManager] = useState(false);
+  const [showHighlightPanel, setShowHighlightPanel] = useState(false);
   const [currentHighlightId, setCurrentHighlightId] = useState<string | null>(null);
 
   // Testing purposes for highlighting based on position and not text
@@ -120,6 +123,8 @@ export function ChatInterface({
   };
 
   // Helper function to compute the text offset within a container element given a text node and an offset within that node.
+  // Written completely by Assistant
+  // This function traverses the text nodes in the container and calculates the offset based on the position of the target node.
   function getTextOffset(container: HTMLElement, targetNode: Node, nodeOffset: number): number {
     let offset = 0;
     let found = false;
@@ -150,6 +155,8 @@ export function ChatInterface({
   }
 
   // Handle text selection and context menu display
+  // Written by Assistant completely; something about the selected string, the message Id they're within, and the offset
+  // Positioning calcualted in here will be used to highlight text properly everytime it renders
   const handleTextSelection = (e: React.MouseEvent) => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
@@ -236,7 +243,7 @@ export function ChatInterface({
   const handleHighlightText = (e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // Save position before closing context menu
+    // Save position before closing context menu and don't modify it later
     const highlightPos = {
       x: contextMenuPosition.x,
       y: contextMenuPosition.y
@@ -244,7 +251,6 @@ export function ChatInterface({
     
     setShowContextMenu(false);
     setDialogPosition(highlightPos);
-    // setCurrentHighlightId(null); // Reset current highlight ID
     setShowHighlightManager(true);
   };
   
@@ -336,6 +342,9 @@ export function ChatInterface({
   };
 
   // Helper function to apply highlights to text
+  // Written by Assistant completely
+  // This function takes the text and messageId, and applies the highlights to the text
+  // It filters the highlights based on the messageId, sorts them by position, and then applies them to the text
   const applyHighlightsToText = (text: string, messageId: string) => {
     // Filter highlights for this specific message
     const messageHighlights = highlights.filter(h => h.messageId === messageId);
@@ -509,13 +518,24 @@ export function ChatInterface({
     <div className="flex flex-col h-screen w-full bg-white">
       
       {/* Top header area (if you want) */}
-      <div className="flex justify-end p-4">
+      <div className="flex justify-between p-4 sticky top-0">
         <h1 
           className="text-2xl font-medium text-gray-800"
           style={{ fontFamily: 'Inter, sans-serif', fontSize: '16px' }}
         >
-          AI Learning Conversations v0.0.6
+          AI Learning Conversations v0.0.7
         </h1>
+        
+        {/* Highlight panel toggle button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 flex items-center gap-1 text-gray-600 hover:text-gray-900"
+          onClick={() => setShowHighlightPanel(prev => !prev)}
+        >
+          <Bookmark className="h-4 w-4" />
+          <span className="text-sm">Highlights</span>
+        </Button>
       </div>
 
       {/* 2) Main content area: flex-1 to fill available space */}
@@ -647,8 +667,21 @@ export function ChatInterface({
         onAddNote={handleAddNote}
         onUpdateHighlightColor={handleUpdateHighlightColor}
         onDeleteNote={handleDeleteNote}
+        onRemoveHighlight={handleDeleteHighlight}
       />
 
+      {/* Highlight Panel (Side Panel) */}
+      {showHighlightPanel && (
+        <div className="fixed right-0 top-0 h-full w-80 z-40 shadow-lg border-l border-gray-200 transition-all duration-300">
+          <HighlightPanel
+            highlights={highlights}
+            onAddNote={handleAddNote}
+            onDeleteHighlight={handleDeleteHighlight}
+            onDeleteNote={handleDeleteNote}
+            onClose={() => setShowHighlightPanel(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
